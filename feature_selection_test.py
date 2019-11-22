@@ -1,9 +1,10 @@
 import csv
+import numpy as np
 from src.heft.feature_selection.fcbf import fcbf
 
-X, Y = [], []
+X, Y = [],[]
 
-with open("oil.csv") as f:
+with open("lungcancer.csv") as f:
     readCSV = csv.reader(f, delimiter=',')
     for (i, line) in enumerate(readCSV):
         X.append(line[:-1])
@@ -11,8 +12,9 @@ with open("oil.csv") as f:
         if i > 500:
             break
 
-print(len(X))
-print(len(Y))
+X = np.array(X)
+Y = np.array(Y)
 
-z = fcbf(X, Y, 0.05)
-print(z.shape)
+z = fcbf(X, Y, **{"delta": 0})
+
+print("Selected {0} feature(s) out of {1}: {2}".format(len(z[0]), len(X[0]), z[0]))
