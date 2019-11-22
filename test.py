@@ -1,13 +1,13 @@
 from skmultiflow.data import WaveformGenerator
 from skmultiflow.evaluation import EvaluatePrequential
-from skmultiflow.meta.accuracy_weighted_ensemble import AccuracyWeightedEnsemble
+from src.heft.meta.heterogenous_ensemble_for_featuredrifts import HeterogenousEnsembleForFeatureDrifts
 
 # 1. Create a stream
 stream = WaveformGenerator()
 stream.prepare_for_use()
 
 # 2. Instantiate the AccuracyWeighted Ensemble
-ensemble = AccuracyWeightedEnsemble()
+ensemble = HeterogenousEnsembleForFeatureDrifts()
 
 # 3. Setup the evaluator
 evaluator = EvaluatePrequential(show_plot=True,
