@@ -7,7 +7,7 @@ stream = WaveformGenerator()
 stream.prepare_for_use()
 
 # 2. Instantiate the AccuracyWeighted Ensemble
-ensemble = HeterogenousEnsembleForFeatureDrifts()
+ensemble = HeterogenousEnsembleForFeatureDrifts(verbose=1)
 
 # 3. Setup the evaluator
 evaluator = EvaluatePrequential(show_plot=True,

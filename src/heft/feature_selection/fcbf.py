@@ -59,7 +59,7 @@ def su_calculation(f1, f2):
 
     return su
 
-def fcbf(X, y, **kwargs):
+def FCBF(X, y, **kwargs):
     """
     This function implements Fast Correlation Based Filter algorithm
 

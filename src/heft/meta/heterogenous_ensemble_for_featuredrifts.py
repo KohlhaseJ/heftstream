@@ -1,6 +1,7 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
 from sklearn.model_selection import KFold
+from ..feature_selection.fcbf import FCBF
 import numpy as np
 import copy as cp
 import operator as op
@@ -21,6 +22,8 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
     n_splits: int (default=5)
         Number of folds to run cross-validation for computing the weight
         of a classifier in the ensemble
+    verbose: bit (default=0)
+        A parameter defined to print some more output when training the classifier.
 
     Notes
     -----
@@ -78,7 +81,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             return self.weight < other.weight
 
     def __init__(self, n_estimators=10, n_kept_estimators=30,
-                 base_estimator=NaiveBayes(), window_size=200, n_splits=5):
+                 base_estimator=NaiveBayes(), window_size=200, n_splits=5, verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -103,6 +106,12 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         self.p = -1  # chunk pointer
         self.X_chunk = None
         self.y_chunk = None
+
+        # feature selection
+        self.last_feature_indices = None
+
+        # verbose param
+        self.verbose = verbose
 
     def partial_fit(self, X, y=None, classes=None, sample_weight=None):
         """ Partially (incrementally) fit the model.
@@ -129,6 +138,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         if self.p == -1:
             self.X_chunk = np.zeros((self.window_size, D))
             self.y_chunk = np.zeros(self.window_size)
+            self.last_feature_indices = np.array([])
             self.p = 0
 
         # fill up the data chunk
@@ -141,12 +151,24 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # reset the pointer
                 self.p = 0
 
+                # feature selection with fcbf
+                # TODO: do we need a threshold a la min features selected.
+                F, SU = FCBF(self.X_chunk, self.y_chunk, **{'delta': 0})
+                if self.verbose == 1:
+                    print("Selected {0} feature(s) out of {1}: {2}".format(len(F), len(self.X_chunk[0]), F))
+
+                if np.array_equal(self.last_feature_indices, F) == False:
+                    print("FEATURE DRIFT OCCURED!!!!")
+                    # TODO: Now train a new classifier
+                
+                self.last_feature_indices = F
+
                 # retrieve the classes and class count
                 classes, class_count = np.unique(self.y_chunk, return_counts=True)
 
-                # (1) train classifier C' from X
+                # (1) train classifier C' from selected features in X
                 C_new = self.train_model(model=cp.deepcopy(self.base_estimator),
-                                         X=self.X_chunk, y=self.y_chunk,
+                                         X=self.X_chunk[:,F], y=self.y_chunk,
                                          classes=classes, sample_weight=sample_weight)
 
                 # compute the baseline error rate given by a random classifier
