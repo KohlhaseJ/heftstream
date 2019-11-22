@@ -4,7 +4,7 @@ from src.heft.feature_selection.fcbf import fcbf
 
 X, Y = [],[]
 
-with open("lungcancer.csv") as f:
+with open("data/lungcancer.csv") as f:
     readCSV = csv.reader(f, delimiter=',')
     for (i, line) in enumerate(readCSV):
         X.append(line[:-1])
