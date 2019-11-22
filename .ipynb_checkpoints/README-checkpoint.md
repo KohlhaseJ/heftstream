@@ -1,8 +1,5 @@
 # heftstream
 
-install scikit-multiflow from the folder with 
-* pip install .
-
 ## Schedule
 
 1. Implement HEFT stream ([Paper](https://link.springer.com/chapter/10.1007/978-3-642-30220-6_1))
