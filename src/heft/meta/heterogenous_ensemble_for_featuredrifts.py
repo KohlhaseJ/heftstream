@@ -1,5 +1,6 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
+from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
 from skmultiflow.neural_networks.perceptron import Perceptron
 from sklearn.model_selection import KFold
 from ..feature_selection.fcbf import FCBF
@@ -83,8 +84,9 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             """
             return self.weight < other.weight
 
-    def __init__(self, n_estimators=10, n_kept_estimators=30,
-                 base_estimators=np.array([NaiveBayes()]), window_size=200, n_splits=5, verbose=0):
+    # adjust and test n_kept estimators
+    def __init__(self, n_estimators=10, n_kept_estimators=20,
+                 base_estimators=np.array([NaiveBayes(), HoeffdingTree()]), window_size=200, n_splits=5, verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -167,7 +169,6 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                       # update all models in model pool
                     # TODO: only if probability distribution changed!
                     print("no feature drift")
-                    print(len(self.models_pool))
                     for model in self.models_pool:
                         model.estimator.partial_fit(self.X_chunk[:,F], self.y_chunk)
                 else:
@@ -177,7 +178,9 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                     new_classifiers = []
                     if self.models_pool:
                         best_model = max(self.models_pool, key=op.attrgetter("weight"))
-                        new_classifiers.append(best_model.estimator)
+                        # evaluate if we should only add the best estimator type or both?
+                        # new_classifiers.append(best_model.estimator)
+                        new_classifiers.extend(self.base_estimators)
                     else:
                         new_classifiers.extend(self.base_estimators)
 
@@ -212,6 +215,15 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
                 # safe latest feature selection
                 self.last_feature_indices = F
+                # print types of all models
+                model_types = {}
+                for model in self.models_pool:
+                    print(type(model.estimator), model.weight)
+                    if type(model.estimator) in model_types:
+                        model_types[type(model.estimator)] += 1
+                    else:
+                        model_types[type(model.estimator)] = 1
+                print(model_types)
                 # instance-based pruning only happens with Cost Sensitive extension
                 self.do_instance_pruning()
 
