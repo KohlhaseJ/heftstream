@@ -138,7 +138,6 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         sample_weight: float or array-like
             Samples weight. If not provided, uniform weights are assumed.
         """
-
         N, D = X.shape
 
         # initializes everything when the ensemble is first called
@@ -173,7 +172,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                     if self.verbose == 1:
                         print("No feature drift.")
                     for model in self.models_pool:
-                        model.estimator.partial_fit(self.X_chunk[:, model.feature_indices], self.y_chunk)
+                        model.estimator.partial_fit(self.X_chunk[:, model.selected_features], self.y_chunk)
                 else:
                     if self.verbose == 1:
                         print("Feature drift occured.")
@@ -181,14 +180,14 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                     new_classifiers = []
                     if self.models_pool:
                         best_model = max(self.models_pool, key=op.attrgetter("weight"))
-                        # evaluate if we should only add the best estimator type or both?
-                        # new_classifiers.append(best_model.estimator)
-                        new_classifiers.extend(self.base_estimators)
+                        # TODO: evaluate if we should only add the best estimator type or both?
+                        for base_estimator in self.base_estimators:
+                            if isinstance(base_estimator, type(best_model.estimator)):
+                                new_classifiers.append(base_estimator)
                     else:
                         new_classifiers.extend(self.base_estimators)
 
-                    # (1) train classifier C' from selected features in X
-
+                    # train new classifier(s) from selected features in X
                     for classifier in new_classifiers:
                         C_new = self.train_model(model=cp.deepcopy(classifier),
                                                 X=self.X_chunk[:,F], y=self.y_chunk,
@@ -202,7 +201,6 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                                                           selected_features=F)
                         clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
                                                             n_splits=self.n_splits)
-                        # print("new weight", clf_new.weight)
 
                         # (4) update the weights of each classifier in the ensemble, not using cross-validation
                         for model in self.models_pool:
@@ -220,14 +218,15 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # safe latest feature selection
                 self.last_selected_features = F
                 # print types of all models
-                model_types = {}
-                for model in self.models_pool:
-                    # print(type(model.estimator), model.weight)
-                    if type(model.estimator) in model_types:
-                        model_types[type(model.estimator)] += 1
-                    else:
-                        model_types[type(model.estimator)] = 1
-                print(model_types)
+                if self.verbose == 1:
+                    model_types = {}
+                    for model in self.models_pool:
+                        if type(model.estimator) in model_types:
+                            model_types[type(model.estimator)] += 1
+                        else:
+                            model_types[type(model.estimator)] = 1
+                    print(model_types)
+                
                 # instance-based pruning only happens with Cost Sensitive extension
                 self.do_instance_pruning()
 
@@ -281,8 +280,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         numpy.array
             Predicted labels for all instances in X.
         """
-        # TODO: prediction based on selected features
-        N, D = X.shape
+        N = len(X)
 
         if len(self.models_pool) == 0:
             return np.zeros(N, dtype=int)
@@ -298,7 +296,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         weighted_votes = [dict()] * N
         for model in ensemble:
             classifier = model.estimator
-            prediction = classifier.predict(X)
+            prediction = classifier.predict(X[:, model.selected_features])
             for i, label in enumerate(prediction):
                 if label in weighted_votes[i]:
                     weighted_votes[i][label] += model.weight / sum_weights
@@ -343,10 +341,9 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The mean square error of the model (MSE_i)
         """
-        # TODO: score computation based on selected features
         N = len(y)
         labels = model.seen_labels
-        probabs = model.estimator.predict_proba(X)
+        probabs = model.estimator.predict_proba(X[:, model.selected_features])
 
         sum_error = 0
         for i, c in enumerate(y):
@@ -376,18 +373,23 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The score of an estimator computed via CV
         """
-        # TODO: score calculation based on selected features
         if n_splits is not None and type(n_splits) is int:
             # we create a copy because we don't want to "modify" an already trained model
             copy_model = cp.deepcopy(model)
-            copy_model.estimator = cp.deepcopy(self.base_estimators[0])
+
+            base_estimator = self.base_estimators[0]
+            for estimator in self.base_estimators:
+                if isinstance(estimator, type(model.estimator)):
+                    base_estimator = estimator
+            copy_model.estimator = cp.deepcopy(base_estimator)
+
             # copy_model.estimator.reset()
             score = 0
             kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=0)
             for train_idx, test_idx in kf.split(X=self.X_chunk, y=self.y_chunk):
                 X_train, y_train = self.X_chunk[train_idx], self.y_chunk[train_idx]
                 X_test, y_test = self.X_chunk[test_idx], self.y_chunk[test_idx]
-                copy_model.estimator = self.train_model(model=copy_model.estimator, X=X_train, y=y_train,
+                copy_model.estimator = self.train_model(model=copy_model.estimator, X=X_train[:, model.selected_features], y=y_train,
                                                         classes=copy_model.seen_labels,
                                                         sample_weight=None)
                 score += self.compute_score(model=copy_model, X=X_test, y=y_test) / self.n_splits
@@ -419,7 +421,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         """
         # compute MSE, with cross-validation or not
         score = self.compute_score_crossvalidation(model=model, n_splits=n_splits)
-        print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
+        # print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
         # w = MSE_r = MSE_i
         return max(0.0, baseline_score - score)
 
