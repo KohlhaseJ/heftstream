@@ -58,15 +58,17 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         seen_labels: array
             The array containing the unique class labels of the data chunk this estimator
             is trained on.
-        feature_indices: array
+        selected_features: array
+            The array containing the indices gathered by a feature selection algorithm
+            for the features this estimator is trained on.
         """
 
-        def __init__(self, estimator, weight, seen_labels, feature_indices):
+        def __init__(self, estimator, weight, seen_labels, selected_features):
             """ Creates a new weighted classifier."""
             self.estimator = estimator
             self.weight = weight
             self.seen_labels = seen_labels
-            self.feature_indices = feature_indices
+            self.selected_features = selected_features
 
         def __lt__(self, other):
             """ Compares an object of this class to the other by means of the weight.
@@ -113,7 +115,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         self.y_chunk = None
 
         # feature selection
-        self.last_feature_indices = None
+        self.last_selected_features = None
 
         # verbose param
         self.verbose = verbose
@@ -143,7 +145,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         if self.p == -1:
             self.X_chunk = np.zeros((self.window_size, D))
             self.y_chunk = np.zeros(self.window_size)
-            self.last_feature_indices = np.array([])
+            self.last_selected_features = np.array([])
             self.p = 0
 
         # fill up the data chunk
@@ -165,15 +167,16 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # retrieve the classes and class count
                 classes, class_count = np.unique(self.y_chunk, return_counts=True)
 
-                if np.array_equal(self.last_feature_indices, F):
-                      # update all models in model pool
+                if np.array_equal(self.last_selected_features, F):
+                    # update all models in model pool
                     # TODO: only if probability distribution changed!
-                    print("no feature drift")
+                    if self.verbose == 1:
+                        print("No feature drift.")
                     for model in self.models_pool:
-                        model.estimator.partial_fit(self.X_chunk[:,F], self.y_chunk)
+                        model.estimator.partial_fit(self.X_chunk[:, model.feature_indices], self.y_chunk)
                 else:
                     if self.verbose == 1:
-                        print("FEATURE DRIFT OCCURED!!!!")
+                        print("Feature drift occured.")
 
                     new_classifiers = []
                     if self.models_pool:
@@ -196,7 +199,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
                         # compute the weight of C' with cross-validation
                         clf_new = self.WeightedClassifier(estimator=C_new, weight=-1.0, seen_labels=classes,
-                                                          feature_indices=F)
+                                                          selected_features=F)
                         clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
                                                             n_splits=self.n_splits)
                         # print("new weight", clf_new.weight)
@@ -215,7 +218,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                                 self.models_pool.append(clf_new)
 
                 # safe latest feature selection
-                self.last_feature_indices = F
+                self.last_selected_features = F
                 # print types of all models
                 model_types = {}
                 for model in self.models_pool:
@@ -278,7 +281,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         numpy.array
             Predicted labels for all instances in X.
         """
-
+        # TODO: prediction based on selected features
         N, D = X.shape
 
         if len(self.models_pool) == 0:
@@ -340,6 +343,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The mean square error of the model (MSE_i)
         """
+        # TODO: score computation based on selected features
         N = len(y)
         labels = model.seen_labels
         probabs = model.estimator.predict_proba(X)
@@ -372,7 +376,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The score of an estimator computed via CV
         """
-
+        # TODO: score calculation based on selected features
         if n_splits is not None and type(n_splits) is int:
             # we create a copy because we don't want to "modify" an already trained model
             copy_model = cp.deepcopy(model)
@@ -413,7 +417,6 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The weight computed from the MSE score of the classifier
         """
-
         # compute MSE, with cross-validation or not
         score = self.compute_score_crossvalidation(model=model, n_splits=n_splits)
         print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
