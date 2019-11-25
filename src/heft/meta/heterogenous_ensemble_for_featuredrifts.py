@@ -199,6 +199,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                                                           feature_indices=F)
                         clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
                                                             n_splits=self.n_splits)
+                        # print("new weight", clf_new.weight)
 
                         # (4) update the weights of each classifier in the ensemble, not using cross-validation
                         for model in self.models_pool:
@@ -218,7 +219,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # print types of all models
                 model_types = {}
                 for model in self.models_pool:
-                    print(type(model.estimator), model.weight)
+                    # print(type(model.estimator), model.weight)
                     if type(model.estimator) in model_types:
                         model_types[type(model.estimator)] += 1
                     else:
@@ -415,7 +416,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
         # compute MSE, with cross-validation or not
         score = self.compute_score_crossvalidation(model=model, n_splits=n_splits)
-
+        print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
         # w = MSE_r = MSE_i
         return max(0.0, baseline_score - score)
 
