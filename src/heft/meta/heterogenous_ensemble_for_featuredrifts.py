@@ -1,7 +1,6 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
-from skmultiflow.neural_networks.perceptron import Perceptron
 from sklearn.model_selection import KFold
 from ..feature_selection.fcbf import FCBF
 import numpy as np
@@ -292,7 +291,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         sum_weights = np.sum([abs(clf.weight) for clf in ensemble])
         if sum_weights == 0:
             sum_weights = 1  # safety check: if sum_weights = 0, do as if sum_weights = 1
-
+        # TODO: check whether the weighted votes is the same as HEFT papers implementation
         weighted_votes = [dict()] * N
         for model in ensemble:
             classifier = model.estimator
@@ -419,6 +418,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The weight computed from the MSE score of the classifier
         """
+        # TODO: is the weight computation working correct with the modifications? Feature selection, multiple base learners
         # compute MSE, with cross-validation or not
         score = self.compute_score_crossvalidation(model=model, n_splits=n_splits)
         # print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
@@ -441,7 +441,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         float
             The baseline score of a random learner
         """
-
+        # TODO: is the weight computation working correct with the modifications? Feature selection, multiple base learners
         # if we assume uniform distribution
         # L = len(np.unique(y))
         # mse_r = L * (1 / L) * (1 - 1 / L) ** 2
