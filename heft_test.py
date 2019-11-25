@@ -1,9 +1,9 @@
-from skmultiflow.data import WaveformGenerator
+from skmultiflow.data import FileStream
 from skmultiflow.evaluation import EvaluatePrequential
 from src.heft.meta.heterogenous_ensemble_for_featuredrifts import HeterogenousEnsembleForFeatureDrifts
 
 # 1. Create a stream
-stream = WaveformGenerator()
+stream = FileStream("data/oil.csv")
 stream.prepare_for_use()
 
 # 2. Instantiate the AccuracyWeighted Ensemble

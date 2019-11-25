@@ -1,5 +1,6 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
+from skmultiflow.neural_networks.perceptron import Perceptron
 from sklearn.model_selection import KFold
 from ..feature_selection.fcbf import FCBF
 import numpy as np
@@ -56,13 +57,15 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         seen_labels: array
             The array containing the unique class labels of the data chunk this estimator
             is trained on.
+        feature_indices: array
         """
 
-        def __init__(self, estimator, weight, seen_labels):
+        def __init__(self, estimator, weight, seen_labels, feature_indices):
             """ Creates a new weighted classifier."""
             self.estimator = estimator
             self.weight = weight
             self.seen_labels = seen_labels
+            self.feature_indices = feature_indices
 
         def __lt__(self, other):
             """ Compares an object of this class to the other by means of the weight.
@@ -160,40 +163,52 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # retrieve the classes and class count
                 classes, class_count = np.unique(self.y_chunk, return_counts=True)
 
-                if np.array_equal(self.last_feature_indices, F) == True:
-                    # update all models in model pool
+                if np.array_equal(self.last_feature_indices, F):
+                      # update all models in model pool
                     # TODO: only if probability distribution changed!
+                    print("no feature drift")
+                    print(len(self.models_pool))
                     for model in self.models_pool:
-                        model.estimator.partial_fit(self.X_chunk[:,F], self.y_chunk, classes, sample_weight) 
+                        model.estimator.partial_fit(self.X_chunk[:,F], self.y_chunk)
                 else:
                     if self.verbose == 1:
                         print("FEATURE DRIFT OCCURED!!!!")
-                    # (1) train classifier C' from selected features in X
-                    # TODO: check for best performing base estimator
-                    C_new = self.train_model(model=cp.deepcopy(self.base_estimators[0]),
-                                            X=self.X_chunk[:,F], y=self.y_chunk,
-                                            classes=classes, sample_weight=sample_weight)
 
-                    # compute the baseline error rate given by a random classifier
-                    baseline_score = self.compute_baseline(self.y_chunk)
-
-                    # compute the weight of C' with cross-validation
-                    clf_new = self.WeightedClassifier(estimator=C_new, weight=-1.0, seen_labels=classes)
-                    clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
-                                                        n_splits=self.n_splits)
-
-                    # (4) update the weights of each classifier in the ensemble, not using cross-validation
-                    for model in self.models_pool:
-                        model.weight = self.compute_weight(model=model, baseline_score=baseline_score, n_splits=None)
-
-                    # add the new model to the pool if there are slots available, else remove the worst one
-                    if len(self.models_pool) < self.n_kept_estimators:
-                        self.models_pool.append(clf_new)
+                    new_classifiers = []
+                    if self.models_pool:
+                        best_model = max(self.models_pool, key=op.attrgetter("weight"))
+                        new_classifiers.append(best_model.estimator)
                     else:
-                        worst_model = min(self.models_pool, key=op.attrgetter("weight"))
-                        if clf_new.weight > worst_model.weight:
-                            self.models_pool.remove(worst_model)
+                        new_classifiers.extend(self.base_estimators)
+
+                    # (1) train classifier C' from selected features in X
+
+                    for classifier in new_classifiers:
+                        C_new = self.train_model(model=cp.deepcopy(classifier),
+                                                X=self.X_chunk[:,F], y=self.y_chunk,
+                                                classes=classes, sample_weight=sample_weight)
+
+                        # compute the baseline error rate given by a random classifier
+                        baseline_score = self.compute_baseline(self.y_chunk)
+
+                        # compute the weight of C' with cross-validation
+                        clf_new = self.WeightedClassifier(estimator=C_new, weight=-1.0, seen_labels=classes,
+                                                          feature_indices=F)
+                        clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
+                                                            n_splits=self.n_splits)
+
+                        # (4) update the weights of each classifier in the ensemble, not using cross-validation
+                        for model in self.models_pool:
+                            model.weight = self.compute_weight(model=model, baseline_score=baseline_score, n_splits=None)
+
+                        # add the new model to the pool if there are slots available, else remove the worst one
+                        if len(self.models_pool) < self.n_kept_estimators:
                             self.models_pool.append(clf_new)
+                        else:
+                            worst_model = min(self.models_pool, key=op.attrgetter("weight"))
+                            if clf_new.weight > worst_model.weight:
+                                self.models_pool.remove(worst_model)
+                                self.models_pool.append(clf_new)
 
                 # safe latest feature selection
                 self.last_feature_indices = F
