@@ -1,6 +1,6 @@
 from skmultiflow.data import FileStream
 from skmultiflow.evaluation import EvaluatePrequential
-from src.heft.meta.heterogenous_ensemble_for_featuredrifts import HeterogenousEnsembleForFeatureDrifts
+from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogenousEnsembleForFeatureDrifts
 
 # 1. Create a stream
 stream = FileStream("data/oil.csv")
