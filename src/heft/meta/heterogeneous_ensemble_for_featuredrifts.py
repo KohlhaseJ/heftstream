@@ -1,3 +1,5 @@
+from sklearn.linear_model import Perceptron
+from sklearn.neural_network import MLPClassifier
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
@@ -87,7 +89,11 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
     # adjust and test n_kept estimators
     def __init__(self, n_estimators=10, n_kept_estimators=20,
-                 base_estimators=np.array([NaiveBayes(), HoeffdingTree()]), window_size=200, n_splits=5, verbose=0):
+                 base_estimators=np.array([NaiveBayes(),
+                                           HoeffdingTree(),
+                                           MLPClassifier(learning_rate_init=1e-2, hidden_layer_sizes=1, random_state=1, max_iter=200*20)
+                                           ]),
+                 window_size=200, n_splits=5, verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
