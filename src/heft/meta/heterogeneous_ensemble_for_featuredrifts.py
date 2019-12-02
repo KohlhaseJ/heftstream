@@ -2,6 +2,8 @@ from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
 from sklearn.model_selection import KFold
+
+from src.heft.classifier.CalibratedPerceptron import CalibratedPerceptron
 from ..feature_selection.fcbf import FCBF
 import numpy as np
 import copy as cp
@@ -87,7 +89,11 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
     # adjust and test n_kept estimators
     def __init__(self, n_estimators=10, n_kept_estimators=20,
-                 base_estimators=np.array([NaiveBayes(), HoeffdingTree()]), window_size=200, n_splits=5, verbose=0):
+                 base_estimators=np.array([NaiveBayes(),
+                                           HoeffdingTree(),
+                                           CalibratedPerceptron()
+                                           ]),
+                 window_size=200, n_splits=5, verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
