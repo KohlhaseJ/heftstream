@@ -132,4 +132,7 @@ dmypy.json
 .idea/
 
 # unpacked data
-data/unpacked
+data/*
+!data/*.gz
+!data/*.zip
+!data/*.bz2
