@@ -130,3 +130,6 @@ dmypy.json
 
 # IDEA files (IntelliJ, PyCharm,etc.)
 .idea/
+
+# unpacked data
+data/unpacked

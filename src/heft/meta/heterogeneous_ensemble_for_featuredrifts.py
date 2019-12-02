@@ -164,12 +164,13 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
                 # retrieve the classes and class count
                 classes, class_count = np.unique(self.y_chunk, return_counts=True)
-
-                if np.array_equal(self.last_selected_features, F):
+                # TODO: check equality (also same order) or just same indices
+                if np.setdiff1d(self.last_selected_features, F, assume_unique=True).size == 0:
                     # update all models in model pool
                     # TODO: only if probability distribution changed!
                     if self.verbose == 1:
                         print("No feature drift.")
+                    
                     for model in self.models_pool:
                         model.estimator.partial_fit(self.X_chunk[:, model.selected_features], self.y_chunk)
                 else:
