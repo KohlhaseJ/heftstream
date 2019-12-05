@@ -1,6 +1,7 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
+from skmultiflow.utils import check_random_state
 from sklearn.model_selection import KFold
 from ..feature_selection.fcbf import FCBF
 import numpy as np
@@ -23,6 +24,10 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
     n_splits: int (default=5)
         Number of folds to run cross-validation for computing the weight
         of a classifier in the ensemble
+    random_state: int, RandomState instance or None, (default=None)
+        If int, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used by `np.random`.
     verbose: bit (default=0)
         A parameter defined to print some more output when training the classifier.
 
@@ -86,8 +91,8 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             return self.weight < other.weight
 
     # adjust and test n_kept estimators
-    def __init__(self, n_estimators=10, n_kept_estimators=20,
-                 base_estimators=np.array([NaiveBayes(), HoeffdingTree()]), window_size=200, n_splits=5, verbose=0):
+    def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HoeffdingTree()]),
+                window_size=200, n_splits=5, random_state=None, verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -115,6 +120,9 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
         # feature selection
         self.last_selected_features = None
+        
+        # set random state
+        self.random_state = check_random_state(random_state)
 
         # verbose param
         self.verbose = verbose
@@ -147,7 +155,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             self.p = 0
 
         # fill up the data chunk
-        for i, x in enumerate(X):
+        for i, _ in enumerate(X):
             self.X_chunk[self.p] = X[i]
             self.y_chunk[self.p] = y[i]
             self.p += 1
@@ -156,23 +164,29 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # reset the pointer
                 self.p = 0
 
-                # feature selection with fcbf
+                # feature selection
                 # TODO: do we need a threshold a la min features selected.
-                F, SU = FCBF(self.X_chunk, self.y_chunk, **{'delta': 0})
+                F, _ = FCBF(self.X_chunk, self.y_chunk, **{'delta': 0})
                 if self.verbose == 1:
                     print("Selected {0} feature(s) out of {1}: {2}".format(len(F), len(self.X_chunk[0]), F))
 
-                # retrieve the classes and class count
-                classes, class_count = np.unique(self.y_chunk, return_counts=True)
+                # retrieve the classes
+                classes = np.unique(self.y_chunk)
                 # TODO: check equality (also same order) or just same indices
-                if np.setdiff1d(self.last_selected_features, F, assume_unique=True).size == 0:
+                # np.array_equal(F, self.last_selected_features):
+                if len(np.setdiff1d(F, self.last_selected_features, assume_unique=True)) == 0:
                     # update all models in model pool
-                    # TODO: only if probability distribution changed!
                     if self.verbose == 1:
                         print("No feature drift.")
                     
+                    # TODO: only if probability distribution changed!
                     for model in self.models_pool:
-                        model.estimator.partial_fit(self.X_chunk[:, model.selected_features], self.y_chunk)
+                        # online bagging poisson(1)
+                        for i in range(self.X_chunk.shape[0]):
+                            m = self.random_state.poisson()
+                            if m > 0:
+                                for j in range(m):
+                                    model.estimator.partial_fit(np.asarray([self.X_chunk[i, model.selected_features]]), np.asarray([self.y_chunk[i]]))#, classes, sample_weight) ??????
                 else:
                     if self.verbose == 1:
                         print("Feature drift occured.")
