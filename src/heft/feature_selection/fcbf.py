@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from . import entropy_estimators as ee
 
 
@@ -55,7 +56,7 @@ def su_calculation(f1, f2):
     # calculate entropy of f2, t3 = H(f2)
     t3 = ee.entropyd(f2)
     # su(f1,f2) = 2*t1/(t2+t3)
-    su = 2.0*t1/(t2+t3)
+    su = 2.0*t1/(t2+t3 + sys.float_info.min)
 
     return su
 
