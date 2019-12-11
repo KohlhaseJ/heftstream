@@ -9,7 +9,7 @@ import copy as cp
 import operator as op
 
 
-class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaEstimatorMixin):
+class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaEstimatorMixin):
     """ Accuracy Weighted Ensemble classifier
 
     Parameters

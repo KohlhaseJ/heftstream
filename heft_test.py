@@ -4,7 +4,7 @@ from skmultiflow.data import HyperplaneGenerator
 from skmultiflow.data import LEDGenerator
 from skmultiflow.evaluation import EvaluatePrequential
 from skmultiflow.meta import AccuracyWeightedEnsemble
-from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogenousEnsembleForFeatureDrifts
+from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogeneousEnsembleForFeatureDrifts
 
 # 1. Create a stream
 stream = FileStream("data/unpacked/kdd_1_hot.csv")
@@ -17,7 +17,7 @@ stream.prepare_for_use()
 print(stream.target_names)
 
 # 2. Instantiate the Ensemble
-ensemble = HeterogenousEnsembleForFeatureDrifts(verbose=1, window_size=1000, n_kept_estimators=10)
+ensemble = HeterogeneousEnsembleForFeatureDrifts(verbose=1, window_size=1000, n_kept_estimators=10)
 
 # 3. Setup the evaluator
 evaluator = EvaluatePrequential(show_plot=True,
