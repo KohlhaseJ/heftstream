@@ -7,12 +7,12 @@ from skmultiflow.meta import AccuracyWeightedEnsemble
 from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogeneousEnsembleForFeatureDrifts
 
 # 1. Create a stream
-stream = FileStream("data/unpacked/kdd_1_hot.csv")
+# stream = FileStream("data/unpacked/kdd_binary.csv")
 
-#stream.prepare_for_use()
-#stream = SEAGenerator(noise_percentage=0.1)
-#stream = HyperplaneGenerator(noise_percentage=0.05, mag_change=0.001, n_drift_features=10) # TODO: n_drift_features = changing 10 attributes at speed ...?
-#stream = LEDGenerator(noise_percentage=0.1, has_noise=True)
+# stream.prepare_for_use()
+# stream = SEAGenerator(noise_percentage=0.1)
+# stream = HyperplaneGenerator(noise_percentage=0.05, mag_change=0.001, n_drift_features=10) # TODO: n_drift_features = changing 10 attributes at speed ...?
+stream = LEDGenerator(noise_percentage=0.1, has_noise=True)
 stream.prepare_for_use()
 print(stream.target_names)
 

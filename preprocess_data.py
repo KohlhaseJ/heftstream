@@ -24,18 +24,32 @@ def nominal_features_to_one_hot(df, cols):
     return df_one_hot
 
 
+def nominal_features_to_binary(df, cols):
+    bin = ce.BinaryEncoder(cols=cols)
+    df_binary = bin.fit_transform(df)
+    print(df_binary.info())
+    return df_binary
+
+
+def nominal_features_to_bdc(df, cols):
+    bdc = ce.BackwardDifferenceEncoder(cols=cols)
+    df_bdc = bin.fit_transform(df)
+    print(df_bdc.info())
+    return df_bdc
+
+
 if __name__ == '__main__':
-    df = pd.read_csv('data/unpacked/kdd.csv', header=None)
+    df = pd.read_csv('data/unpacked/kdd.csv', header=None, nrows=1000000)
     # print(df.head())
 
     nominal_feature_cols = [1, 2, 3]
     class_col = 41
 
     df_numerical_class = nominal_feature_to_numerical(df, class_col)
-    df_one_hot = nominal_features_to_one_hot(df_numerical_class, nominal_feature_cols)
+    df_binary = nominal_features_to_binary(df_numerical_class, nominal_feature_cols)
 
-    print(df_one_hot.head())
+    print(df_binary.head())
 
-    df_one_hot.to_csv('data/unpacked/kdd_1_hot.csv', index=False)
+    df_binary.to_csv('data/unpacked/kdd_binary.csv', index=False)
 
 

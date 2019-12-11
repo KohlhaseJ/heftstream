@@ -57,8 +57,10 @@ def su_calculation(f1, f2):
     t3 = ee.entropyd(f2)
     # su(f1,f2) = 2*t1/(t2+t3)
     su = 2.0*t1/(t2+t3 + sys.float_info.min)
+    print(t1, t2, t3, su)
 
     return su
+
 
 def FCBF(X, y, **kwargs):
     """
