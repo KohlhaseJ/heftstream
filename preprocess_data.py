@@ -25,8 +25,8 @@ def nominal_features_to_one_hot(df, cols):
 
 
 def nominal_features_to_binary(df, cols):
-    bin = ce.BinaryEncoder(cols=cols)
-    df_binary = bin.fit_transform(df)
+    be = ce.BinaryEncoder(cols=cols)
+    df_binary = be.fit_transform(df)
     print(df_binary.info())
     return df_binary
 
