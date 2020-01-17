@@ -25,13 +25,20 @@ stream.prepare_for_use()
 print(stream.target_names)
 
 # 2. Instantiate the Ensembles
-heft = HeterogeneousEnsembleForFeatureDrifts(verbose=1, window_size=1000, n_kept_estimators=10, min_features=5, base_estimators=[NaiveBayes(), HAT()])
-awe = AccuracyWeightedEnsemble(window_size=1000, n_kept_estimators=10)
+heft = HeterogeneousEnsembleForFeatureDrifts(verbose=0, window_size=1000, n_kept_estimators=10, min_features=5, base_estimators=[NaiveBayes(), HAT()])
+aweNB = AccuracyWeightedEnsemble(window_size=1000, n_kept_estimators=10, base_estimator=NaiveBayes())
+aweHAT = AccuracyWeightedEnsemble(window_size=1000, n_kept_estimators=10, base_estimator=HAT())
+
 
 # 3. Setup the evaluator
-evaluator = EvaluatePrequential(show_plot=True,
+evaluator = EvaluatePrequential(show_plot=False,
                                 pretrain_size=1000,
-                                max_samples=20000)
+                                max_samples=100000)
 
 # 4. Run evaluation
-evaluator.evaluate(stream=stream, model=[heft, awe])
+print('Evaluating HEFT Stream')
+evaluator.evaluate(stream=stream, model=heft)
+print('Evaluating AWE NB')
+evaluator.evaluate(stream=stream, model=aweNB)
+print('Evaluating AWE HAT')
+evaluator.evaluate(stream=stream, model=aweHAT)
