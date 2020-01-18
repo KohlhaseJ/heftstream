@@ -1,10 +1,10 @@
 import numpy as np
-import sys
 from .base import BaseSelector
-from .helper import entropy_estimators as ee
+from .helper import calculations as c
 
 class FCBF(BaseSelector):
-    def select(self, X, y):
+    @staticmethod
+    def select(X, y):
         """
         This function implements Fast Correlation Based Filter algorithm
 
@@ -34,7 +34,7 @@ class FCBF(BaseSelector):
         for i in range(n_features):
             f = X[:, i]
             t1[i, 0] = i
-            t1[i, 1] = self._su_calculation(f, y)
+            t1[i, 1] = c.su_calculation(f, y)
         s_list = t1[t1[:, 1] > delta, :]
         # index of selected features, initialized to be empty
         F = []
@@ -50,7 +50,7 @@ class FCBF(BaseSelector):
             SU.append(s_list[idx, 1])
             for i in s_list[:, 0]:
                 fi = X[:, i]
-                if self._su_calculation(fp, fi) >= t1[i, 1]:
+                if c.su_calculation(fp, fi) >= t1[i, 1]:
                     # construct the mask for feature whose su is larger than su(fp,y)
                     idx = s_list[:, 0] != i
                     idx = np.array([idx, idx])
@@ -60,62 +60,3 @@ class FCBF(BaseSelector):
                     length = len(s_list)//2
                     s_list = s_list.reshape((length, 2))
         return np.array(F, dtype=int)
-
-        
-    def _information_gain(self, f1, f2):
-        """
-        This function calculates the information gain, where ig(f1,f2) = H(f1) - H(f1|f2)
-        Input
-        -----
-        f1: {numpy array}, shape (n_samples,)
-        f2: {numpy array}, shape (n_samples,)
-        Output
-        ------
-        ig: {float}
-        """
-
-        ig = ee.entropyd(f1) - self._conditional_entropy(f1, f2)
-        return ig
-
-
-    def _conditional_entropy(self, f1, f2):
-        """
-        This function calculates the conditional entropy, where ce = H(f1) - I(f1;f2)
-        Input
-        -----
-        f1: {numpy array}, shape (n_samples,)
-        f2: {numpy array}, shape (n_samples,)
-        Output
-        ------
-        ce: {float}
-            ce is conditional entropy of f1 and f2
-        """
-
-        ce = ee.entropyd(f1) - ee.midd(f1, f2)
-        return ce
-
-
-    def _su_calculation(self, f1, f2):
-        """
-        This function calculates the symmetrical uncertainty, where su(f1,f2) = 2*IG(f1,f2)/(H(f1)+H(f2))
-        Input
-        -----
-        f1: {numpy array}, shape (n_samples,)
-        f2: {numpy array}, shape (n_samples,)
-        Output
-        ------
-        su: {float}
-            su is the symmetrical uncertainty of f1 and f2
-        """
-
-        # calculate information gain of f1 and f2, t1 = ig(f1,f2)
-        t1 = self._information_gain(f1, f2)
-        # calculate entropy of f1, t2 = H(f1)
-        t2 = ee.entropyd(f1)
-        # calculate entropy of f2, t3 = H(f2)
-        t3 = ee.entropyd(f2)
-        # su(f1,f2) = 2*t1/(t2+t3)
-        su = 2.0*t1/(t2+t3 + sys.float_info.min)
-        # print(t1, t2, t3, su)
-
-        return su

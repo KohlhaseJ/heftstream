@@ -16,8 +16,8 @@ with open("data/weather.csv") as f:
 X = np.array(X)
 y = np.array(y)
 
-F1 = FCBF().select(X, y)
-F2 = CIFE().select(X, y)
+F1 = FCBF.select(X, y)
+F2 = CIFE.select(X, y)
 
 print("FCBF: Selected {0} feature(s) out of {1}: {2}".format(len(F1), len(X[0]), F1))
 print("LCSI: Selected {0} feature(s) out of {1}: {2}".format(len(F2), len(X[0]), F2))

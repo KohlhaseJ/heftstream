@@ -3,7 +3,8 @@ from .base import BaseSelector
 import numpy as np
 
 class CIFE(BaseSelector):
-    def select(self, X, y):
+    @staticmethod
+    def select(X, y):
         """
         This function implements the basic scoring criteria for linear combination of shannon information term.
         The scoring criteria is calculated based on the formula j_cmi=I(f;y)-beta*sum_j(I(fj;f))+gamma*sum(I(fj;f|y))

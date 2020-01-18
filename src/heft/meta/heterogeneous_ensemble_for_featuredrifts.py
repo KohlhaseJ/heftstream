@@ -7,6 +7,7 @@ from ..feature_selection.fcbf import FCBF
 import numpy as np
 import copy as cp
 import operator as op
+import random
 
 
 class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaEstimatorMixin):
@@ -25,8 +26,12 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         Number of folds to run cross-validation for computing the weight
         of a classifier in the ensemble
     feature_selector: object of heft.feature_selection.BaseSelector
+        Feature selection method used to determine most contributable feature subspace
     min_features: int (default=5)
         Minimum number of features before appending a feature selection method
+    random_ensemble:  bit (default=0)
+        Determines whether to use a random base learner for each new window instead
+        of the best performing.
     random_state: int, RandomState instance or None, (default=None)
         If int, random_state is the seed used by the random number generator;
         If RandomState instance, random_state is the random number generator;
@@ -93,7 +98,8 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
 
     # adjust and test n_kept estimators
     def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HoeffdingTree()]),
-                window_size=200, n_splits=5, feature_selector=FCBF(), min_features=5, random_state=None, verbose=0):
+                window_size=200, n_splits=5, feature_selector=FCBF, min_features=5, random_ensemble=0, random_state=None,
+                verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -124,6 +130,8 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         self.min_features = min_features
         self.last_selected_features = None
         self.number_of_selected_features = []
+
+        self.random_ensemble = random_ensemble
         
         # set random state
         self.random_state = check_random_state(random_state)
@@ -172,7 +180,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
                 # feature selection
                 selected_features = range(len(self.X_chunk[0]))
                 if len(self.X_chunk[0]) >= self.min_features:
-                    selected_features = self.feature_selector.select(X,y)
+                    selected_features = self.feature_selector.select(self.X_chunk,self.y_chunk)
                 # TODO: what should happen for 0 selected_features?
                 if len(selected_features) == 0:
                     selected_features = self.last_selected_features
@@ -195,11 +203,16 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
                     if self.verbose == 1:
                         print("Feature drift occured.")
 
-                    best_model = min(self.models_pool, key=op.attrgetter("error"))
-                    for base_estimator in self.base_estimators:
-                        if isinstance(base_estimator, type(best_model.estimator)):
-                            add_classifier = self.HeftClassifier(estimator=cp.deepcopy(model), error=0.0,
-                                                                seen_labels=classes, selected_features=selected_features)
+                    if  self.random_ensemble == 1:
+                        randomIndex = random.randrange(len(self.base_estimators))
+                        add_classifier = self.HeftClassifier(estimator=cp.deepcopy(self.base_estimators[randomIndex]), error=0.0,
+                                                            seen_labels=classes, selected_features=selected_features)
+                    else:
+                        best_model = min(self.models_pool, key=op.attrgetter("error"))
+                        for base_estimator in self.base_estimators:
+                            if isinstance(base_estimator, type(best_model.estimator)):
+                                add_classifier = self.HeftClassifier(estimator=cp.deepcopy(base_estimator), error=0.0,
+                                                                    seen_labels=classes, selected_features=selected_features)
 
                     # add the new model to the pool if there are slots available, else remove the worst one
                     if len(self.models_pool) >= self.n_kept_estimators:
