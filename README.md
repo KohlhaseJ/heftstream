@@ -1,9 +1,9 @@
 # heftstream
 
-install scikit-multiflow from the folder with 
-* pip install .
-* or
-* pip install scikit-multiflow
+Install the dependencies via
+* `pip install -r requirements.txt`
+Run the evaluation
+* `python heft_test.py`
 
 ## Schedule
 
