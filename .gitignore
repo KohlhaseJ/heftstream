@@ -130,3 +130,9 @@ dmypy.json
 
 # IDEA files (IntelliJ, PyCharm,etc.)
 .idea/
+
+# just allow zipped data in git
+data/*
+!data/*.gz
+!data/*.zip
+!data/*.bz2

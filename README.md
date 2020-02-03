@@ -2,6 +2,8 @@
 
 install scikit-multiflow from the folder with 
 * pip install .
+* or
+* pip install scikit-multiflow
 
 ## Schedule
 
