@@ -1,6 +1,6 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
-from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
+from skmultiflow.trees.hoeffding_adaptive_tree import HAT
 from skmultiflow.utils import check_random_state
 from sklearn.model_selection import KFold
 from ..feature_selection.fcbf import FCBF
@@ -97,7 +97,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
             return self.error > other.error
 
     # adjust and test n_kept estimators
-    def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HoeffdingTree()]),
+    def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HAT()]),
                 window_size=200, n_splits=5, feature_selector=FCBF, min_features=5, random_ensemble=0, random_state=None,
                 verbose=0):
         """ Create a new ensemble"""
