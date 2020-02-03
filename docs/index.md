@@ -8,7 +8,7 @@ HEFT-Stream is an ensmemble learning method that incorporates feature selection 
 >[2] Montiel, Jacob, et al. "Scikit-multiflow: A multi-output streaming framework." *The Journal of Machine Learning Research 19.1* (2018): 2915-2914.
 
 
-<div style="background-color: #F2F2F2">
+<div style="background-color: #159957; padding-top: 15px; background-image: linear-gradient(120deg, #155799, #159957);">
 <center>
 <a class="btn" href="http://www.google.com">Code</a>
 <a class="btn" href="http://www.google.com">Paper</a>
