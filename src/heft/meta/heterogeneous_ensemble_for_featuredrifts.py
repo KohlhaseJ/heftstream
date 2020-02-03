@@ -3,6 +3,8 @@ from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HAT
 from skmultiflow.utils import check_random_state
 from sklearn.model_selection import KFold
+
+from src.heft.classifier.CalibratedPerceptron import CalibratedPerceptron
 from ..feature_selection.fcbf import FCBF
 import numpy as np
 import copy as cp
