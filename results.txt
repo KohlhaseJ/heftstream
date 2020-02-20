@@ -1,17 +1,114 @@
-----------Processed samples: 1000
+----------
+data/LED.csv
+Processed samples: 1000
 Mean performance:
-heft - Accuracy     : 0.6438
-heft - Training time (s)  : 1.86
-heft - Testing time  (s)  : 1.99
-heft - Total time    (s)  : 3.84
+heft - Accuracy     : 0.5913
+heft - Training time (s)  : 1.82
+heft - Testing time  (s)  : 1.88
+heft - Total time    (s)  : 3.70
 awe - Accuracy     : 0.6937
-awe - Training time (s)  : 1.87
-awe - Testing time  (s)  : 2.15
-awe - Total time    (s)  : 4.02
+awe - Training time (s)  : 1.78
+awe - Testing time  (s)  : 2.04
+awe - Total time    (s)  : 3.81
 Selected Features:
 	Avg: 15.4
 	Std: 1.0198039027185568
 Ensemble estimators:
 NaiveBayes: 5
 HATT: 1
+----------
+----------
+data/LED.csv
+Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6375
+heft - Training time (s)  : 1.97
+heft - Testing time  (s)  : 1.99
+heft - Total time    (s)  : 3.96
+awe - Accuracy     : 0.6937
+awe - Training time (s)  : 1.81
+awe - Testing time  (s)  : 2.13
+awe - Total time    (s)  : 3.94
+Selected Features:
+	Avg: 15.4
+	Std: 1.0198039027185568
+Ensemble estimators:
+NaiveBayes: 5
+HAT: 1
+----------
+----------
+data/LED.csv
+Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6325
+heft - Training time (s)  : 3.15
+heft - Testing time  (s)  : 2.31
+heft - Total time    (s)  : 5.46
+awe - Accuracy     : 0.6937
+awe - Training time (s)  : 2.03
+awe - Testing time  (s)  : 2.30
+awe - Total time    (s)  : 4.33
+Selected Features:
+	Avg: 15.4
+	Std: 1.0198039027185568
+Ensemble estimators:
+HATT: 1
+HAT: 5
+----------
+----------
+data/SEA.csv
+Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6475
+heft - Training time (s)  : 0.51
+heft - Testing time  (s)  : 0.12
+heft - Total time    (s)  : 0.63
+awe - Accuracy     : 0.8325
+awe - Training time (s)  : 0.13
+awe - Testing time  (s)  : 0.12
+awe - Total time    (s)  : 0.26
+Selected Features:
+	Avg: 3.0
+	Std: 0.0
+Ensemble estimators:
+NaiveBayes: 1
+HATT: 1
+----------
+----------
+data/SEA.csv
+Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6475
+heft - Training time (s)  : 0.29
+heft - Testing time  (s)  : 0.13
+heft - Total time    (s)  : 0.42
+awe - Accuracy     : 0.8325
+awe - Training time (s)  : 0.14
+awe - Testing time  (s)  : 0.12
+awe - Total time    (s)  : 0.26
+Selected Features:
+	Avg: 3.0
+	Std: 0.0
+Ensemble estimators:
+NaiveBayes: 1
+HAT: 1
+----------
+----------
+data/SEA.csv
+Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6475
+heft - Training time (s)  : 0.40
+heft - Testing time  (s)  : 0.15
+heft - Total time    (s)  : 0.55
+awe - Accuracy     : 0.8325
+awe - Training time (s)  : 0.14
+awe - Testing time  (s)  : 0.12
+awe - Total time    (s)  : 0.26
+Selected Features:
+	Avg: 3.0
+	Std: 0.0
+Ensemble estimators:
+HATT: 1
+HAT: 1
 ----------
