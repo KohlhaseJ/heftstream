@@ -11,7 +11,7 @@ from skmultiflow.meta.accuracy_weighted_ensemble import AccuracyWeightedEnsemble
 from sklearn.datasets import fetch_openml
 
 # 1. Create a stream
-# stream = FileStream("data/unpacked/kdd_binary.csv")
+stream = FileStream("data/unpacked/kdd_binary.csv")
 
 # mnist
 # X, y = fetch_openml('mnist_784', version=1, return_X_y=True)
@@ -20,7 +20,7 @@ from sklearn.datasets import fetch_openml
 # stream.prepare_for_use()
 # stream = SEAGenerator(noise_percentage=0.1)
 # stream = HyperplaneGenerator(noise_percentage=0.05, mag_change=0.001, n_drift_features=10) # TODO: n_drift_features = changing 10 attributes at speed ...?
-stream = LEDGenerator(noise_percentage=0.1, has_noise=True)
+# stream = LEDGenerator(noise_percentage=0.1, has_noise=True)
 stream.prepare_for_use()
 print(stream.target_names)
 

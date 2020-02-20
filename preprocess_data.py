@@ -25,15 +25,15 @@ def nominal_features_to_one_hot(df, cols):
 
 
 def nominal_features_to_binary(df, cols):
-    bin = ce.BinaryEncoder(cols=cols)
-    df_binary = bin.fit_transform(df)
+    be = ce.BinaryEncoder(cols=cols)
+    df_binary = be.fit_transform(df)
     print(df_binary.info())
     return df_binary
 
 
 def nominal_features_to_bdc(df, cols):
     bdc = ce.BackwardDifferenceEncoder(cols=cols)
-    df_bdc = bin.fit_transform(df)
+    df_bdc = bdc.fit_transform(df)
     print(df_bdc.info())
     return df_bdc
 
@@ -46,10 +46,12 @@ if __name__ == '__main__':
     class_col = 41
 
     df_numerical_class = nominal_feature_to_numerical(df, class_col)
-    df_binary = nominal_features_to_binary(df_numerical_class, nominal_feature_cols)
 
-    print(df_binary.head())
+    for col in nominal_feature_cols:
+        df_numerical_class = nominal_feature_to_numerical(df_numerical_class, col)
 
-    df_binary.to_csv('data/unpacked/kdd_binary.csv', index=False)
+    print(df_numerical_class.head())
+
+    df_numerical_class.to_csv('data/unpacked/kdd_ordinal.csv', index=False)
 
 
