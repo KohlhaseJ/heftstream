@@ -27,11 +27,15 @@ ensembles['heft'] = HeterogeneousEnsembleForFeatureDrifts(window_size=window_siz
 ensembles['awe'] = AccuracyWeightedEnsemble(window_size=window_size, n_kept_estimators=n_kept_estimators, base_estimator=NaiveBayes())
 
 # 3. Setup the evaluator
-evaluator = EvaluatePrequential(show_plot=True,
+evaluator = EvaluatePrequential(show_plot=False,
                                 pretrain_size=window_size,
                                 metrics=['accuracy','running_time'],
-                                max_samples=10000)
+                                max_samples=400)
 
 # 4. Run evaluation
 evaluator.evaluate(stream=stream, model=list(ensembles.values()), model_names=list(ensembles.keys()))
-ensembles['heft'].print_statistics()
+print(ensembles['heft'].print_statistics())
+# print(ensembles['awe'].get_info())
+
+with open('results.txt', 'w') as f:
+    f.write(str(ensembles['heft'].print_statistics()))

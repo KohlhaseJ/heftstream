@@ -1,15 +1,19 @@
 from skmultiflow.core import BaseSKMObject, ClassifierMixin, MetaEstimatorMixin
 from skmultiflow.bayes import NaiveBayes
-from skmultiflow.trees.hoeffding_adaptive_tree import HoeffdingTree
+from skmultiflow.trees.hoeffding_adaptive_tree import HAT
+from skmultiflow.utils import check_random_state
 from sklearn.model_selection import KFold
+
+from src.heft.classifier.CalibratedPerceptron import CalibratedPerceptron
 from ..feature_selection.fcbf import FCBF
 import numpy as np
 import copy as cp
 import operator as op
+import random
 
 
-class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaEstimatorMixin):
-    """ Accuracy Weighted Ensemble classifier
+class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaEstimatorMixin):
+    """ Heterogeneous ensemble for feature drifts (HEFT) classifier
 
     Parameters
     ----------
@@ -23,37 +27,46 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
     n_splits: int (default=5)
         Number of folds to run cross-validation for computing the weight
         of a classifier in the ensemble
+    feature_selector: object of heft.feature_selection.BaseSelector
+        Feature selection method used to determine most contributable feature subspace
+    min_features: int (default=5)
+        Minimum number of features before appending a feature selection method
+    random_ensemble:  bit (default=0)
+        Determines whether to use a random base learner for each new window instead
+        of the best performing.
+    random_state: int, RandomState instance or None, (default=None)
+        If int, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used by `np.random`.
     verbose: bit (default=0)
         A parameter defined to print some more output when training the classifier.
 
     Notes
     -----
-    An Accuracy Weighted Ensemble (AWE) [1]_ is an ensemble of classification models in which
-    each model is judiciously weighted based on their expected classification accuracy
-    on the test data under the time-evolving environment. The ensemble guarantees to be
-    efficient and robust against concept-drifting streams.
+    The heterogeneous ensemble or feature drifts in data streams [1]_ is an ensemble of
+    different classification models that incorporates feature selection into a
+    heterogeneous ensemble to adapt to different types of concept drifts.
 
     References
     ----------
-    .. [1] Haixun Wang, Wei Fan, Philip S. Yu, and Jiawei Han. 2003.
-       Mining concept-drifting data streams using ensemble classifiers.
-       In Proceedings of the ninth ACM SIGKDD international conference
-       on Knowledge discovery and data mining (KDD '03).
-       ACM, New York, NY, USA, 226-235.
+    .. [1] Nguyen, H. L., Woon, Y. K., Ng, W. K., & Wan, L. (2012, May).
+       Heterogeneous ensemble for feature drifts in data streams. In
+       Pacific-Asia conference on knowledge discovery and data mining
+       (pp. 1-12). Springer, Berlin, Heidelberg.
 
     """
 
-    class WeightedClassifier:
-        """ A wrapper that includes a base estimator and its associated weight
-        (and additional information)
+    class HeftClassifier:
+        """ A wrapper that includes a base estimator, its aggregated error and the
+        the feature subspace the estimator was created with. 
 
         Parameters
         ----------
         estimator: StreamModel or sklearn.BaseEstimator
             The base estimator to be wrapped up with additional information.
             This estimator must already been trained on a data chunk.
-        weight: float
-            The weight associated to this estimator
+        error: float
+            The error associated to this estimator
         seen_labels: array
             The array containing the unique class labels of the data chunk this estimator
             is trained on.
@@ -62,10 +75,10 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             for the features this estimator is trained on.
         """
 
-        def __init__(self, estimator, weight, seen_labels, selected_features):
-            """ Creates a new weighted classifier."""
+        def __init__(self, estimator, error, seen_labels, selected_features):
+            """ Creates a new HEFT classifier."""
             self.estimator = estimator
-            self.weight = weight
+            self.error = error
             self.seen_labels = seen_labels
             self.selected_features = selected_features
 
@@ -75,7 +88,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
             Parameters
             ----------
-            other: WeightedClassifier
+            other: HeftClassifier
                 The other object to be compared to
 
             Returns
@@ -83,11 +96,12 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
             boolean
                 true if this object's weight is less than that of the other object
             """
-            return self.weight < other.weight
+            return self.error > other.error
 
     # adjust and test n_kept estimators
-    def __init__(self, n_estimators=10, n_kept_estimators=20,
-                 base_estimators=np.array([NaiveBayes(), HoeffdingTree()]), window_size=200, n_splits=5, verbose=0):
+    def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HAT()]),
+                window_size=200, n_splits=5, feature_selector=FCBF, min_features=5, random_ensemble=0, random_state=None,
+                verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -114,7 +128,15 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         self.y_chunk = None
 
         # feature selection
+        self.feature_selector = feature_selector
+        self.min_features = min_features
         self.last_selected_features = None
+        self.number_of_selected_features = []
+
+        self.random_ensemble = random_ensemble
+        
+        # set random state
+        self.random_state = check_random_state(random_state)
 
         # verbose param
         self.verbose = verbose
@@ -122,6 +144,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
     def partial_fit(self, X, y=None, classes=None, sample_weight=None):
         """ Partially (incrementally) fit the model.
 
+        TODO: change description to fit HEFT
         Updates the ensemble when a new data chunk arrives (Algorithm 1 in the paper).
         The update is only launched when the chunk is filled up.
 
@@ -137,17 +160,17 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         sample_weight: float or array-like
             Samples weight. If not provided, uniform weights are assumed.
         """
-        N, D = X.shape
+        _, D = X.shape
 
         # initializes everything when the ensemble is first called
         if self.p == -1:
             self.X_chunk = np.zeros((self.window_size, D))
             self.y_chunk = np.zeros(self.window_size)
-            self.last_selected_features = np.array([])
+            self.last_selected_features = range(len(self.X_chunk[0]))
             self.p = 0
 
         # fill up the data chunk
-        for i, x in enumerate(X):
+        for i, _ in enumerate(X):
             self.X_chunk[self.p] = X[i]
             self.y_chunk[self.p] = y[i]
             self.p += 1
@@ -156,66 +179,67 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 # reset the pointer
                 self.p = 0
 
-                # feature selection with fcbf
-                # TODO: do we need a threshold a la min features selected.
-                F, SU = FCBF(self.X_chunk, self.y_chunk, **{'delta': 0})
+                # feature selection
+                selected_features = range(len(self.X_chunk[0]))
+                if len(self.X_chunk[0]) >= self.min_features:
+                    selected_features = self.feature_selector.select(self.X_chunk,self.y_chunk)
+                # TODO: what should happen for 0 selected_features?
+                if len(selected_features) == 0:
+                    selected_features = self.last_selected_features
+                self.number_of_selected_features.append(len(selected_features))
+                
                 if self.verbose == 1:
-                    print("Selected {0} feature(s) out of {1}: {2}".format(len(F), len(self.X_chunk[0]), F))
+                    print("Selected {0} feature(s) out of {1}: {2}".format(len(selected_features), len(self.X_chunk[0]), selected_features))
 
-                # retrieve the classes and class count
-                classes, class_count = np.unique(self.y_chunk, return_counts=True)
+                # retrieve the classes
+                classes = np.unique(self.y_chunk)
 
-                if np.array_equal(self.last_selected_features, F):
-                    # update all models in model pool
-                    # TODO: only if probability distribution changed!
-                    if self.verbose == 1:
-                        print("No feature drift.")
-                    for model in self.models_pool:
-                        model.estimator.partial_fit(self.X_chunk[:, model.selected_features], self.y_chunk)
-                else:
+                # on first chunk add an instance of each base estimator
+                if self.models_pool == []:
+                    for model in self.base_estimators:
+                        add_classifier = self.HeftClassifier(estimator=cp.deepcopy(model), error=0.0,
+                                                            seen_labels=classes, selected_features=selected_features)
+                        self.models_pool.append(add_classifier)
+                # otherwise check for feature drift
+                elif len(np.setdiff1d(selected_features, self.last_selected_features, assume_unique=True)) != 0:
                     if self.verbose == 1:
                         print("Feature drift occured.")
 
-                    new_classifiers = []
-                    if self.models_pool:
-                        best_model = max(self.models_pool, key=op.attrgetter("weight"))
-                        # TODO: evaluate if we should only add the best estimator type or both?
+                    if  self.random_ensemble == 1:
+                        randomIndex = random.randrange(len(self.base_estimators))
+                        add_classifier = self.HeftClassifier(estimator=cp.deepcopy(self.base_estimators[randomIndex]), error=0.0,
+                                                            seen_labels=classes, selected_features=selected_features)
+                    else:
+                        best_model = min(self.models_pool, key=op.attrgetter("error"))
                         for base_estimator in self.base_estimators:
                             if isinstance(base_estimator, type(best_model.estimator)):
-                                new_classifiers.append(base_estimator)
-                    else:
-                        new_classifiers.extend(self.base_estimators)
+                                add_classifier = self.HeftClassifier(estimator=cp.deepcopy(base_estimator), error=0.0,
+                                                                    seen_labels=classes, selected_features=selected_features)
 
-                    # train new classifier(s) from selected features in X
-                    for classifier in new_classifiers:
-                        C_new = self.train_model(model=cp.deepcopy(classifier),
-                                                X=self.X_chunk[:,F], y=self.y_chunk,
-                                                classes=classes, sample_weight=sample_weight)
-
-                        # compute the baseline error rate given by a random classifier
-                        baseline_score = self.compute_baseline(self.y_chunk)
-
-                        # compute the weight of C' with cross-validation
-                        clf_new = self.WeightedClassifier(estimator=C_new, weight=-1.0, seen_labels=classes,
-                                                          selected_features=F)
-                        clf_new.weight = self.compute_weight(model=clf_new, baseline_score=baseline_score,
-                                                            n_splits=self.n_splits)
-
-                        # (4) update the weights of each classifier in the ensemble, not using cross-validation
-                        for model in self.models_pool:
-                            model.weight = self.compute_weight(model=model, baseline_score=baseline_score, n_splits=None)
-
-                        # add the new model to the pool if there are slots available, else remove the worst one
-                        if len(self.models_pool) < self.n_kept_estimators:
-                            self.models_pool.append(clf_new)
-                        else:
-                            worst_model = min(self.models_pool, key=op.attrgetter("weight"))
-                            if clf_new.weight > worst_model.weight:
-                                self.models_pool.remove(worst_model)
-                                self.models_pool.append(clf_new)
-
+                    # add the new model to the pool if there are slots available, else remove the worst one
+                    if len(self.models_pool) >= self.n_kept_estimators:
+                        worst_model = max(self.models_pool, key=op.attrgetter("error"))
+                        self.models_pool.remove(worst_model)
+                    
+                    self.models_pool.append(add_classifier)
+                else:                    
+                    if self.verbose == 1:
+                        print("No feature drift.")
+            
+                # partial fit the models created with current feature subspace
+                for model in self.models_pool:
+                    if len(np.setdiff1d(selected_features, model.selected_features, assume_unique=True)) == 0:                            
+                        for i in range(self.X_chunk.shape[0]):
+                            # online bagging poisson(1)
+                            m = self.random_state.poisson()
+                            if m > 0:
+                                for _ in range(m):
+                                    model.estimator.partial_fit(np.asarray([self.X_chunk[i, model.selected_features]]), np.asarray([self.y_chunk[i]]))
+                    # calculate aggregated error
+                    model.error += self.compute_mse(model=model, X=self.X_chunk, y=self.y_chunk)
+                
                 # safe latest feature selection
-                self.last_selected_features = F
+                self.last_selected_features = selected_features
                 # print types of all models
                 if self.verbose == 1:
                     model_types = {}
@@ -225,7 +249,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                         else:
                             model_types[type(model.estimator)] = 1
                     print(model_types)
-
+                
                 # instance-based pruning only happens with Cost Sensitive extension
                 self.do_instance_pruning()
 
@@ -235,34 +259,6 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         # Only has effect if the ensemble is applied in cost-sensitive applications.
         # Not used in the current implementation.
         pass
-
-    @staticmethod
-    def train_model(model, X, y, classes=None, sample_weight=None):
-        """ Trains a model, taking care of the fact that either fit or partial_fit is implemented
-
-        Parameters
-        ----------
-        model: StreamModel or sklearn.BaseEstimator
-            The model to train
-        X: numpy.ndarray of shape (n_samples, n_features)
-            The data chunk
-        y: numpy.array of shape (n_samples)
-            The labels in the chunk
-        classes: list or numpy.array
-            The unique classes in the data chunk
-        sample_weight: float or array-like
-            Instance weight. If not provided, uniform weights are assumed.
-
-        Returns
-        -------
-        StreamModel or sklearn.BaseEstimator
-            The trained model
-        """
-        try:
-            model.fit(X, y)
-        except NotImplementedError:
-            model.partial_fit(X, y, classes, sample_weight)
-        return model
 
     def predict(self, X):
         """ Predicts the labels of X in a general classification setting.
@@ -283,24 +279,19 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
 
         if len(self.models_pool) == 0:
             return np.zeros(N, dtype=int)
-
-        # get top K classifiers
-        end = self.n_estimators if len(self.models_pool) > self.n_estimators else len(self.models_pool)
-        ensemble = sorted(self.models_pool, key=lambda clf: clf.weight, reverse=True)[0:end]
-
-        sum_weights = np.sum([abs(clf.weight) for clf in ensemble])
-        if sum_weights == 0:
-            sum_weights = 1  # safety check: if sum_weights = 0, do as if sum_weights = 1
-        # TODO: check whether the weighted votes is the same as HEFT papers implementation
+        
         weighted_votes = [dict()] * N
-        for model in ensemble:
-            classifier = model.estimator
-            prediction = classifier.predict(X[:, model.selected_features])
-            for i, label in enumerate(prediction):
-                if label in weighted_votes[i]:
-                    weighted_votes[i][label] += model.weight / sum_weights
-                else:
-                    weighted_votes[i][label] = model.weight / sum_weights
+        for model in self.models_pool:
+            X_hat = X[:, model.selected_features]
+            probabs = model.estimator.predict_proba(X_hat)
+            w = 1 / (model.error + 0.001)
+
+            for i, label in enumerate(model.seen_labels):
+                for j, p in enumerate(probabs):
+                    if label in weighted_votes[j]:
+                        weighted_votes[j][label] += w*p[i]
+                    else:
+                        weighted_votes[j][label] = w*p[i]
 
         predict_weighted_voting = np.zeros(N, dtype=int)
         for i, dic in enumerate(weighted_votes):
@@ -311,6 +302,22 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
     def predict_proba(self, X):
         raise NotImplementedError
 
+    def print_statistics(self):
+        res = ''
+        res += 'Selected Features:\n'
+        res += f'\tAvg: {np.mean(self.number_of_selected_features)}\n'
+        res += f'\tStd: {np.std(self.number_of_selected_features)}\n'
+        res += 'Ensemble estimators:\n'
+        model_types = {}
+        for model in self.models_pool:
+            if type(model.estimator) in model_types:
+                model_types[type(model.estimator)] += 1
+            else:
+                model_types[type(model.estimator)] = 1
+        for _, item in enumerate(model_types):
+            res += f'{item.__name__}: {model_types[item]}\n'
+        return res
+
     def reset(self):
         """ Resets all parameters to its default value"""
         self.models_pool = []
@@ -319,7 +326,7 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
         self.y_chunk = None
 
     @staticmethod
-    def compute_score(model, X, y):
+    def compute_mse(model, X, y):
         """ Computes the mean square error of a classifier, via the predicted probabilities.
 
         This code needs to take into account the fact that a classifier C trained on a
@@ -354,101 +361,3 @@ class HeterogenousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, MetaE
                 sum_error += 1.0
 
         return sum_error / N
-
-    def compute_score_crossvalidation(self, model, n_splits):
-        """ Computes the score of interests, using cross-validation or not.
-
-        Parameters
-        ----------
-        model: StreamModel or sklearn.BaseEstimator
-            The estimator in the ensemble to compute the score on
-        n_splits: int
-            The number of CV folds.
-            If None, the score is computed directly on the entire data chunk.
-            Else, we proceed as in traditional cross-validation setting.
-
-        Returns
-        -------
-        float
-            The score of an estimator computed via CV
-        """
-        if n_splits is not None and type(n_splits) is int:
-            # we create a copy because we don't want to "modify" an already trained model
-            copy_model = cp.deepcopy(model)
-
-            base_estimator = self.base_estimators[0]
-            for estimator in self.base_estimators:
-                if isinstance(estimator, type(model.estimator)):
-                    base_estimator = estimator
-            copy_model.estimator = cp.deepcopy(base_estimator)
-
-            # copy_model.estimator.reset()
-            score = 0
-            kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=0)
-            for train_idx, test_idx in kf.split(X=self.X_chunk, y=self.y_chunk):
-                X_train, y_train = self.X_chunk[train_idx], self.y_chunk[train_idx]
-                X_test, y_test = self.X_chunk[test_idx], self.y_chunk[test_idx]
-                copy_model.estimator = self.train_model(model=copy_model.estimator, X=X_train[:, model.selected_features], y=y_train,
-                                                        classes=copy_model.seen_labels,
-                                                        sample_weight=None)
-                score += self.compute_score(model=copy_model, X=X_test, y=y_test) / self.n_splits
-        else:
-            # compute the score on the entire data chunk
-            score = self.compute_score(X=self.X_chunk, y=self.y_chunk, model=model)
-
-        return score
-
-    def compute_weight(self, model, baseline_score, n_splits=None):
-        """ Computes the weight of a classifier given the baseline score calculated on a random learner.
-        The weight relies on either (1) MSE if it is a normal classifier,
-        or (2) benefit if it is a cost-sensitive classifier.
-
-        Parameters
-        ----------
-        model: StreamModel or sklearn.BaseEstimator
-            The learner to compute the weight on
-        baseline_score: float
-            The baseline score calculated on a random learner
-        n_splits: int (default=None)
-            The number of CV folds.
-            If not None (and is a number), we compute the weight using CV
-
-        Returns
-        -------
-        float
-            The weight computed from the MSE score of the classifier
-        """
-        # TODO: is the weight computation working correct with the modifications? Feature selection, multiple base learners
-        # compute MSE, with cross-validation or not
-        score = self.compute_score_crossvalidation(model=model, n_splits=n_splits)
-        # print("baseline:", baseline_score, "score: ", score, "r-i", baseline_score - score, score - baseline_score)
-        # w = MSE_r = MSE_i
-        return max(0.0, baseline_score - score)
-
-    @staticmethod
-    def compute_baseline(y):
-        """ This method computes the score produced by a random classifier, served as a baseline.
-        The baseline score is MSE\ :sub:`r`\  in case of a normal classifier, b\ :sub:`r`\  in case of a cost-sensitive
-        classifier.
-
-        Parameters
-        ----------
-        y: numpy.array
-            The labels of the chunk
-
-        Returns
-        -------
-        float
-            The baseline score of a random learner
-        """
-        # TODO: is the weight computation working correct with the modifications? Feature selection, multiple base learners
-        # if we assume uniform distribution
-        # L = len(np.unique(y))
-        # mse_r = L * (1 / L) * (1 - 1 / L) ** 2
-
-        # if we base on the class distribution of the data --> count the number of labels
-        classes, class_count = np.unique(y, return_counts=True)
-        class_dist = [class_count[i] / len(y) for i, c in enumerate(classes)]
-        mse_r = np.sum([class_dist[i] * ((1 - class_dist[i]) ** 2) for i, c in enumerate(classes)])
-
-        return mse_r
