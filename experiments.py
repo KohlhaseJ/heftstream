@@ -7,6 +7,8 @@ from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import Heterogeneous
 from src.heft.feature_selection.fcbf import FCBF
 from src.heft.feature_selection.cife import CIFE
 from skmultiflow.evaluation import EvaluatePrequential
+import sys
+from io import StringIO
 
 
 # 1. Create a data stream
@@ -30,12 +32,18 @@ ensembles['awe'] = AccuracyWeightedEnsemble(window_size=window_size, n_kept_esti
 evaluator = EvaluatePrequential(show_plot=False,
                                 pretrain_size=window_size,
                                 metrics=['accuracy','running_time'],
-                                max_samples=400)
+                                max_samples=1000)
 
 # 4. Run evaluation
 evaluator.evaluate(stream=stream, model=list(ensembles.values()), model_names=list(ensembles.keys()))
-print(ensembles['heft'].print_statistics())
-# print(ensembles['awe'].get_info())
 
 with open('results.txt', 'w') as f:
+    stdout = sys.stdout
+    s = StringIO()
+    sys.stdout = s
+    evaluator.evaluation_summary()
+    s.seek(0)
+    f.write('----------\n')
+    f.write(str(s.read()))
     f.write(str(ensembles['heft'].print_statistics()))
+    f.write('----------')

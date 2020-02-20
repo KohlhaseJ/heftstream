@@ -1,6 +1,17 @@
+----------Processed samples: 1000
+Mean performance:
+heft - Accuracy     : 0.6438
+heft - Training time (s)  : 1.86
+heft - Testing time  (s)  : 1.99
+heft - Total time    (s)  : 3.84
+awe - Accuracy     : 0.6937
+awe - Training time (s)  : 1.87
+awe - Testing time  (s)  : 2.15
+awe - Total time    (s)  : 4.02
 Selected Features:
 	Avg: 15.4
 	Std: 1.0198039027185568
 Ensemble estimators:
 NaiveBayes: 5
 HATT: 1
+----------
