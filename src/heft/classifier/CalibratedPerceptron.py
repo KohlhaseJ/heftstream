@@ -22,7 +22,10 @@ class CalibratedPerceptron(BaseSKMObject, ClassifierMixin):
         self.cc.fit(X, y, sample_weight=sample_weight)
 
     def partial_fit(self, X, y, classes=None, sample_weight=None):
-        self.perceptron.partial_fit(X, y, classes, sample_weight)
+        print(y)
+        self.perceptron.partial_fit(X, y, classes=classes, sample_weight=sample_weight)
+        if self.cc is None:
+            self.cc = CalibratedClassifierCV(self.perceptron, cv='prefit', method='sigmoid')
         self.cc.fit(X, y, sample_weight=sample_weight)
 
     def predict(self, X):

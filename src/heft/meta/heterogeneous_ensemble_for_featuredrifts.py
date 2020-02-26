@@ -58,7 +58,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
 
     class HeftClassifier:
         """ A wrapper that includes a base estimator, its aggregated error and the
-        the feature subspace the estimator was created with. 
+        the feature subspace the estimator was created with.
 
         Parameters
         ----------
@@ -100,8 +100,9 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
 
     # adjust and test n_kept estimators
     def __init__(self, n_estimators=10, n_kept_estimators=10, base_estimators=np.array([NaiveBayes(), HAT()]),
-                window_size=200, n_splits=5, feature_selector=FCBF, min_features=5, random_ensemble=0, random_state=None,
-                verbose=0):
+                 window_size=200, n_splits=5, feature_selector=FCBF, min_features=5, random_ensemble=0,
+                 random_state=None,
+                 verbose=0):
         """ Create a new ensemble"""
 
         super().__init__()
@@ -134,7 +135,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         self.number_of_selected_features = []
 
         self.random_ensemble = random_ensemble
-        
+
         # set random state
         self.random_state = check_random_state(random_state)
 
@@ -182,14 +183,15 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
                 # feature selection
                 selected_features = range(len(self.X_chunk[0]))
                 if len(self.X_chunk[0]) >= self.min_features:
-                    selected_features = self.feature_selector.select(self.X_chunk,self.y_chunk)
+                    selected_features = self.feature_selector.select(self.X_chunk, self.y_chunk)
                 # TODO: what should happen for 0 selected_features?
                 if len(selected_features) == 0:
                     selected_features = self.last_selected_features
                 self.number_of_selected_features.append(len(selected_features))
-                
+
                 if self.verbose == 1:
-                    print("Selected {0} feature(s) out of {1}: {2}".format(len(selected_features), len(self.X_chunk[0]), selected_features))
+                    print("Selected {0} feature(s) out of {1}: {2}".format(len(selected_features), len(self.X_chunk[0]),
+                                                                           selected_features))
 
                 # retrieve the classes
                 classes = np.unique(self.y_chunk)
@@ -198,46 +200,50 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
                 if self.models_pool == []:
                     for model in self.base_estimators:
                         add_classifier = self.HeftClassifier(estimator=cp.deepcopy(model), error=0.0,
-                                                            seen_labels=classes, selected_features=selected_features)
+                                                             seen_labels=classes, selected_features=selected_features)
                         self.models_pool.append(add_classifier)
                 # otherwise check for feature drift
                 elif len(np.setdiff1d(selected_features, self.last_selected_features, assume_unique=True)) != 0:
                     if self.verbose == 1:
                         print("Feature drift occured.")
 
-                    if  self.random_ensemble == 1:
+                    if self.random_ensemble == 1:
                         randomIndex = random.randrange(len(self.base_estimators))
-                        add_classifier = self.HeftClassifier(estimator=cp.deepcopy(self.base_estimators[randomIndex]), error=0.0,
-                                                            seen_labels=classes, selected_features=selected_features)
+                        add_classifier = self.HeftClassifier(estimator=cp.deepcopy(self.base_estimators[randomIndex]),
+                                                             error=0.0,
+                                                             seen_labels=classes, selected_features=selected_features)
                     else:
                         best_model = min(self.models_pool, key=op.attrgetter("error"))
                         for base_estimator in self.base_estimators:
                             if isinstance(base_estimator, type(best_model.estimator)):
                                 add_classifier = self.HeftClassifier(estimator=cp.deepcopy(base_estimator), error=0.0,
-                                                                    seen_labels=classes, selected_features=selected_features)
+                                                                     seen_labels=classes,
+                                                                     selected_features=selected_features)
 
                     # add the new model to the pool if there are slots available, else remove the worst one
                     if len(self.models_pool) >= self.n_kept_estimators:
                         worst_model = max(self.models_pool, key=op.attrgetter("error"))
                         self.models_pool.remove(worst_model)
-                    
+
                     self.models_pool.append(add_classifier)
-                else:                    
+                else:
                     if self.verbose == 1:
                         print("No feature drift.")
-            
+
                 # partial fit the models created with current feature subspace
                 for model in self.models_pool:
-                    if len(np.setdiff1d(selected_features, model.selected_features, assume_unique=True)) == 0:                            
-                        for i in range(self.X_chunk.shape[0]):
+                    if len(np.setdiff1d(selected_features, model.selected_features, assume_unique=True)) == 0:
+                        for k in range(self.X_chunk.shape[0]):
                             # online bagging poisson(1)
                             m = self.random_state.poisson()
                             if m > 0:
                                 for _ in range(m):
-                                    model.estimator.partial_fit(np.asarray([self.X_chunk[i, model.selected_features]]), np.asarray([self.y_chunk[i]]))
+                                    model.estimator.partial_fit(np.asarray([self.X_chunk[k, model.selected_features]]),
+                                                                np.asarray([self.y_chunk[k]]),
+                                                                classes=classes if type(model.estimator) is not NaiveBayes else None)
                     # calculate aggregated error
                     model.error += self.compute_mse(model=model, X=self.X_chunk, y=self.y_chunk)
-                
+
                 # safe latest feature selection
                 self.last_selected_features = selected_features
                 # print types of all models
@@ -249,7 +255,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
                         else:
                             model_types[type(model.estimator)] = 1
                     print(model_types)
-                
+
                 # instance-based pruning only happens with Cost Sensitive extension
                 self.do_instance_pruning()
 
@@ -279,7 +285,7 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
 
         if len(self.models_pool) == 0:
             return np.zeros(N, dtype=int)
-        
+
         weighted_votes = [dict()] * N
         for model in self.models_pool:
             X_hat = X[:, model.selected_features]
@@ -289,9 +295,9 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
             for i, label in enumerate(model.seen_labels):
                 for j, p in enumerate(probabs):
                     if label in weighted_votes[j]:
-                        weighted_votes[j][label] += w*p[i]
+                        weighted_votes[j][label] += w * p[i]
                     else:
-                        weighted_votes[j][label] = w*p[i]
+                        weighted_votes[j][label] = w * p[i]
 
         predict_weighted_voting = np.zeros(N, dtype=int)
         for i, dic in enumerate(weighted_votes):
@@ -303,20 +309,17 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         raise NotImplementedError
 
     def print_statistics(self):
-        res = ''
-        res += 'Selected Features:\n'
-        res += f'\tAvg: {np.mean(self.number_of_selected_features)}\n'
-        res += f'\tStd: {np.std(self.number_of_selected_features)}\n'
-        res += 'Ensemble estimators:\n'
+        print('Selected Features:')
+        print('Avg: ', np.mean(self.number_of_selected_features))
+        print('Std: ', np.std(self.number_of_selected_features))
+        print('Ensemble estimators:')
         model_types = {}
         for model in self.models_pool:
             if type(model.estimator) in model_types:
                 model_types[type(model.estimator)] += 1
             else:
                 model_types[type(model.estimator)] = 1
-        for _, item in enumerate(model_types):
-            res += f'{item.__name__}: {model_types[item]}\n'
-        return res
+        print(model_types)
 
     def reset(self):
         """ Resets all parameters to its default value"""
