@@ -313,16 +313,21 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         res += 'Selected Features:\n'
         res += f'\tAvg: {np.mean(self.number_of_selected_features)}\n'
         res += f'\tStd: {np.std(self.number_of_selected_features)}\n'
+        res += f'Random ensemble: {str(self.random_ensemble)}\n'
         res += 'Ensemble estimators:\n'
+        model_types = self.get_models()
+        for _, item in enumerate(model_types):
+            res += f'{item.__name__}: {model_types[item]}\n'
+        return res
+
+    def get_models(self):
         model_types = {}
         for model in self.models_pool:
             if type(model.estimator) in model_types:
                 model_types[type(model.estimator)] += 1
             else:
                 model_types[type(model.estimator)] = 1
-        for _, item in enumerate(model_types):
-            res += f'{item.__name__}: {model_types[item]}\n'
-        return res
+        return model_types
 
     def reset(self):
         """ Resets all parameters to its default value"""

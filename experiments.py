@@ -3,6 +3,7 @@ from skmultiflow.bayes import NaiveBayes
 from skmultiflow.trees.hoeffding_adaptive_tree import HAT
 from skmultiflow.trees.hoeffding_anytime_tree import HATT
 from skmultiflow.meta import AccuracyWeightedEnsemble
+from skmultiflow.meta import AdditiveExpertEnsemble
 from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogeneousEnsembleForFeatureDrifts
 from src.heft.feature_selection.fcbf import FCBF
 from src.heft.feature_selection.cmim import CMIM
@@ -12,20 +13,24 @@ from functools import partial
 from sklearn.neural_network import MLPClassifier
 import sys
 from io import StringIO
+import pandas as pd
+import numpy as np
+from evaluator_regex import get_proc_samples_accuracy_time
 
-open('results.txt', 'w').close()
+
+result_array = []
 
 # 1. Create a list of filepaths for all datasets
-files = ['data/KDD_PRE.csv', 'data/weather.csv', 'data/LED.csv', 'data/SEA.csv', 'data/HYP.csv']
-MAX_SAMPLES = 1000
+files = ['data/weather.csv', 'data/LED.csv', 'data/SEA.csv', 'data/HYP.csv', 'data/KDD_PRE.csv']
+MAX_SAMPLES = 400
 BASE_ESTIMATORS = [NaiveBayes, HATT, HAT,
                    partial(MLPClassifier, learning_rate_init=1e-2, hidden_layer_sizes=1, max_iter=2000)]
 HEFT_BASE_ESTIMATORS_LIST = []
-for i in range(1, len(BASE_ESTIMATORS) + 1):
+for i in range(2, len(BASE_ESTIMATORS) + 1):
     HEFT_BASE_ESTIMATORS_LIST.extend(list(combinations(BASE_ESTIMATORS, i)))
 print(len(HEFT_BASE_ESTIMATORS_LIST))
 print(HEFT_BASE_ESTIMATORS_LIST)
-FEATURE_SELECTOR_LIST = [CMIM, FCBF]
+FEATURE_SELECTOR_LIST = [FCBF, CMIM]
 window_size = 200
 n_kept_estimators = 10
 
@@ -35,7 +40,7 @@ for file in files:
     stream.prepare_for_use()
 
     awe = AccuracyWeightedEnsemble(window_size=window_size, n_kept_estimators=n_kept_estimators,
-                                   base_estimator=NaiveBayes())
+                                                 base_estimator=NaiveBayes())
 
     evaluator = EvaluatePrequential(show_plot=False,
                                     pretrain_size=window_size,
@@ -44,50 +49,104 @@ for file in files:
 
     evaluator.evaluate(stream=stream, model=awe, model_names=['awe'])
 
-    with open('results.txt', 'a') as f:
-        stdout = sys.stdout
-        s = StringIO()
-        sys.stdout = s
-        evaluator.evaluation_summary()
-        s.seek(0)
-        f.write('----------------------------------------------------\n')
-        f.write(file + '\n')
-        f.write(str(s.read()) + '\n')
-        sys.stdout = stdout
+    a = [file, 'awe', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    stdout = sys.stdout
+    s = StringIO()
+    sys.stdout = s
+    evaluator.evaluation_summary()
+    s.seek(0)
+    t = get_proc_samples_accuracy_time(s.read())
+    sys.stdout = stdout
+    a[12] = t[0]
+    a[13] = t[1]
+    a[14] = t[2]
+    result_array.append(a)
+
+    stream = FileStream(file)
+    stream.prepare_for_use()
+
+    aee = AdditiveExpertEnsemble(n_estimators=n_kept_estimators, base_estimator=NaiveBayes())
+
+    evaluator = EvaluatePrequential(show_plot=False,
+                                    pretrain_size=window_size,
+                                    metrics=['accuracy', 'running_time'],
+                                    max_samples=MAX_SAMPLES)
+
+    evaluator.evaluate(stream=stream, model=aee, model_names=['aee'])
+
+    a = [file, 'aee', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    stdout = sys.stdout
+    s = StringIO()
+    sys.stdout = s
+    evaluator.evaluation_summary()
+    s.seek(0)
+    t = get_proc_samples_accuracy_time(s.read())
+    sys.stdout = stdout
+    a[12] = t[0]
+    a[13] = t[1]
+    a[14] = t[2]
+    result_array.append(a)
 
     for FEATURE_SELECTOR in FEATURE_SELECTOR_LIST:
-        for HEFT_BASE_ESTIMATORS in HEFT_BASE_ESTIMATORS_LIST:
-            # 2. Create a data stream from the current file
-            stream = FileStream(file)
-            stream.prepare_for_use()
+        for rand in (0, 1):
+            for HEFT_BASE_ESTIMATORS in HEFT_BASE_ESTIMATORS_LIST:
+                # 2. Create a data stream from the current file
+                stream = FileStream(file)
+                stream.prepare_for_use()
 
-            # 3. Instantiate the Ensemble
-            heft = HeterogeneousEnsembleForFeatureDrifts(window_size=window_size, n_kept_estimators=n_kept_estimators,
-                                                         min_features=5,
-                                                         base_estimators=[c() for c in HEFT_BASE_ESTIMATORS],
-                                                         feature_selector=FEATURE_SELECTOR,
-                                                         random_ensemble=0)
+                # 3. Instantiate the Ensemble
+                heft = HeterogeneousEnsembleForFeatureDrifts(window_size=window_size,
+                                                             n_kept_estimators=n_kept_estimators,
+                                                             min_features=5,
+                                                             base_estimators=[c() for c in HEFT_BASE_ESTIMATORS],
+                                                             feature_selector=FEATURE_SELECTOR,
+                                                             random_ensemble=rand)
 
-            # 4. Setup the evaluator
-            evaluator = EvaluatePrequential(show_plot=False,
-                                            pretrain_size=window_size,
-                                            metrics=['accuracy', 'running_time'],
-                                            max_samples=MAX_SAMPLES)
+                # 4. Setup the evaluator
+                evaluator = EvaluatePrequential(show_plot=False,
+                                                pretrain_size=window_size,
+                                                metrics=['accuracy', 'running_time'],
+                                                max_samples=MAX_SAMPLES)
 
-            # 5. Run evaluation
-            evaluator.evaluate(stream=stream, model=heft, model_names=['heft'])
+                # 5. Run evaluation
+                evaluator.evaluate(stream=stream, model=heft, model_names=['heft'])
 
-            # 6. Print the results of the evalutation to a resutl file
-            with open('results.txt', 'a') as f:
+                a = [file, 'heft', 0, 0, 0, 0, FEATURE_SELECTOR.__name__, 0, 0, 0, 0, 0, 0, 0, 0]
+                if NaiveBayes in HEFT_BASE_ESTIMATORS:
+                    a[2] = 1
+                if HATT in HEFT_BASE_ESTIMATORS:
+                    a[3] = 1
+                if HAT in HEFT_BASE_ESTIMATORS:
+                    a[4] = 1
+                if MLPClassifier in HEFT_BASE_ESTIMATORS:
+                    a[5] = 1
+                model_types = heft.get_models()
+                if NaiveBayes in model_types.keys():
+                    a[7] = model_types[NaiveBayes]
+                if HATT in model_types.keys():
+                    a[8] = model_types[HATT]
+                if HAT in model_types.keys():
+                    a[9] = model_types[HAT]
+                if MLPClassifier in model_types.keys():
+                    a[10] = model_types[MLPClassifier]
+                a[11] = heft.random_ensemble
                 stdout = sys.stdout
                 s = StringIO()
                 sys.stdout = s
                 evaluator.evaluation_summary()
                 s.seek(0)
-                f.write('----------\n')
-                f.write(str(HEFT_BASE_ESTIMATORS) + '\n')
-                f.write(str(s.read()))
-                f.write(str(heft.print_statistics()))
-                f.write(str(FEATURE_SELECTOR) + '\n')
-                f.write('----------\n')
+                t = get_proc_samples_accuracy_time(s.read())
                 sys.stdout = stdout
+                a[12] = t[0]
+                a[13] = t[1]
+                a[14] = t[2]
+                result_array.append(a)
+
+                # 6. Print the results of the evalutation to a resutl file
+
+
+df = pd.DataFrame(np.array(result_array),
+                  columns=['dataset', 'ensemble', 'base_naive', 'base_hatt', 'base_hat', 'base_MLP',
+                           'feature_selector', 'final_naive', 'final_hatt', 'final_hat', 'final_MLP', 'random_ensemble',
+                           'total_samples', 'accuracy', 'running_time'])
+df.to_csv('result.csv')

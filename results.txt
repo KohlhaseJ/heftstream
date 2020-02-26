@@ -1,85 +1,20 @@
 ----------------------------------------------------
+data/weather.csv
+(1000, 0.7525, 0.38)
+----------
+----------------------------------------------------
+data/LED.csv
+(1000, 0.6937, 4.09)
+----------
+----------------------------------------------------
+data/SEA.csv
+(1000, 0.8325, 0.22)
+----------
+----------------------------------------------------
+data/HYP.csv
+(1000, 0.8325, 0.44)
+----------
+----------------------------------------------------
 data/KDD_PRE.csv
-Processed samples: 1000
-Mean performance:
-awe - Accuracy     : 0.7750
-awe - Training time (s)  : 0.67
-awe - Testing time  (s)  : 0.23
-awe - Total time    (s)  : 0.91
-
-----------
-(<class 'skmultiflow.bayes.naive_bayes.NaiveBayes'>,)
-Processed samples: 1000
-Mean performance:
-heft - Accuracy     : 0.9975
-heft - Training time (s)  : 0.29
-heft - Testing time  (s)  : 0.10
-heft - Total time    (s)  : 0.39
-Selected Features:
-	Avg: 25.0
-	Std: 19.595917942265423
-Ensemble estimators:
-NaiveBayes: 1
-<class 'src.heft.feature_selection.fcbf.FCBF'>
-----------
-----------
-(<class 'skmultiflow.trees.hoeffding_anytime_tree.HATT'>,)
-Processed samples: 1000
-Mean performance:
-heft - Accuracy     : 0.9975
-heft - Training time (s)  : 0.39
-heft - Testing time  (s)  : 0.12
-heft - Total time    (s)  : 0.51
-Selected Features:
-	Avg: 25.0
-	Std: 19.595917942265423
-Ensemble estimators:
-HATT: 1
-<class 'src.heft.feature_selection.fcbf.FCBF'>
-----------
-----------
-(<class 'skmultiflow.trees.hoeffding_adaptive_tree.HAT'>,)
-Processed samples: 1000
-Mean performance:
-heft - Accuracy     : 0.9975
-heft - Training time (s)  : 0.52
-heft - Testing time  (s)  : 0.11
-heft - Total time    (s)  : 0.63
-Selected Features:
-	Avg: 25.0
-	Std: 19.595917942265423
-Ensemble estimators:
-HAT: 1
-<class 'src.heft.feature_selection.fcbf.FCBF'>
-----------
-----------
-(functools.partial(<class 'sklearn.neural_network._multilayer_perceptron.MLPClassifier'>, learning_rate_init=0.01, hidden_layer_sizes=1, max_iter=2000),)
-Processed samples: 800
-Mean performance:
-heft - Accuracy     : 1.0000
-heft - Training time (s)  : 0.40
-heft - Testing time  (s)  : 0.05
-heft - Total time    (s)  : 0.45
-Selected Features:
-	Avg: 31.0
-	Std: 17.320508075688775
-Ensemble estimators:
-MLPClassifier: 1
-<class 'src.heft.feature_selection.fcbf.FCBF'>
-----------
-----------
-(<class 'skmultiflow.bayes.naive_bayes.NaiveBayes'>, <class 'skmultiflow.trees.hoeffding_anytime_tree.HATT'>)
-Processed samples: 1000
-Mean performance:
-heft - Accuracy     : 0.9975
-heft - Training time (s)  : 0.55
-heft - Testing time  (s)  : 0.17
-heft - Total time    (s)  : 0.73
-Selected Features:
-	Avg: 25.0
-	Std: 19.595917942265423
-Ensemble estimators:
-NaiveBayes: 1
-HATT: 1
-<class 'src.heft.feature_selection.fcbf.FCBF'>
+(1000, 0.775, 1.0)
 ----------
