@@ -309,17 +309,20 @@ class HeterogeneousEnsembleForFeatureDrifts(BaseSKMObject, ClassifierMixin, Meta
         raise NotImplementedError
 
     def print_statistics(self):
-        print('Selected Features:')
-        print('Avg: ', np.mean(self.number_of_selected_features))
-        print('Std: ', np.std(self.number_of_selected_features))
-        print('Ensemble estimators:')
+        res = ''
+        res += 'Selected Features:\n'
+        res += f'\tAvg: {np.mean(self.number_of_selected_features)}\n'
+        res += f'\tStd: {np.std(self.number_of_selected_features)}\n'
+        res += 'Ensemble estimators:\n'
         model_types = {}
         for model in self.models_pool:
             if type(model.estimator) in model_types:
                 model_types[type(model.estimator)] += 1
             else:
                 model_types[type(model.estimator)] = 1
-        print(model_types)
+        for _, item in enumerate(model_types):
+            res += f'{item.__name__}: {model_types[item]}\n'
+        return res
 
     def reset(self):
         """ Resets all parameters to its default value"""
