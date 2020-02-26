@@ -5,6 +5,7 @@ from skmultiflow.trees.hoeffding_anytime_tree import HATT
 from skmultiflow.meta import AccuracyWeightedEnsemble
 from src.heft.meta.heterogeneous_ensemble_for_featuredrifts import HeterogeneousEnsembleForFeatureDrifts
 from src.heft.feature_selection.fcbf import FCBF
+from src.heft.feature_selection.cmim import CMIM
 from skmultiflow.evaluation import EvaluatePrequential
 from itertools import combinations
 from functools import partial
@@ -24,7 +25,7 @@ for i in range(1, len(BASE_ESTIMATORS) + 1):
     HEFT_BASE_ESTIMATORS_LIST.extend(list(combinations(BASE_ESTIMATORS, i)))
 print(len(HEFT_BASE_ESTIMATORS_LIST))
 print(HEFT_BASE_ESTIMATORS_LIST)
-FEATURE_SELECTOR_LIST = [FCBF, ]
+FEATURE_SELECTOR_LIST = [CMIM, FCBF]
 window_size = 200
 n_kept_estimators = 10
 
