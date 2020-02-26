@@ -49,7 +49,7 @@ for file in files:
 
     evaluator.evaluate(stream=stream, model=awe, model_names=['awe'])
 
-    a = [file, 'awe', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    a = [file, 'awe', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     stdout = sys.stdout
     s = StringIO()
     sys.stdout = s
@@ -57,9 +57,9 @@ for file in files:
     s.seek(0)
     t = get_proc_samples_accuracy_time(s.read())
     sys.stdout = stdout
-    a[12] = t[0]
-    a[13] = t[1]
-    a[14] = t[2]
+    a[13] = t[0]
+    a[14] = t[1]
+    a[15] = t[2]
     result_array.append(a)
 
     stream = FileStream(file)
@@ -74,7 +74,7 @@ for file in files:
 
     evaluator.evaluate(stream=stream, model=aee, model_names=['aee'])
 
-    a = [file, 'aee', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    a = [file, 'aee', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     stdout = sys.stdout
     s = StringIO()
     sys.stdout = s
@@ -82,9 +82,9 @@ for file in files:
     s.seek(0)
     t = get_proc_samples_accuracy_time(s.read())
     sys.stdout = stdout
-    a[12] = t[0]
-    a[13] = t[1]
-    a[14] = t[2]
+    a[13] = t[0]
+    a[14] = t[1]
+    a[15] = t[2]
     result_array.append(a)
 
     for FEATURE_SELECTOR in FEATURE_SELECTOR_LIST:
@@ -111,7 +111,7 @@ for file in files:
                 # 5. Run evaluation
                 evaluator.evaluate(stream=stream, model=heft, model_names=['heft'])
 
-                a = [file, 'heft', 0, 0, 0, 0, FEATURE_SELECTOR.__name__, 0, 0, 0, 0, 0, 0, 0, 0]
+                a = [file, 'heft', 0, 0, 0, 0, FEATURE_SELECTOR.__name__, np.mean(heft.number_of_selected_features), 0, 0, 0, 0, 0, 0, 0, 0]
                 if NaiveBayes in HEFT_BASE_ESTIMATORS:
                     a[2] = 1
                 if HATT in HEFT_BASE_ESTIMATORS:
@@ -122,14 +122,14 @@ for file in files:
                     a[5] = 1
                 model_types = heft.get_models()
                 if NaiveBayes in model_types.keys():
-                    a[7] = model_types[NaiveBayes]
+                    a[8] = model_types[NaiveBayes]
                 if HATT in model_types.keys():
-                    a[8] = model_types[HATT]
+                    a[9] = model_types[HATT]
                 if HAT in model_types.keys():
-                    a[9] = model_types[HAT]
+                    a[10] = model_types[HAT]
                 if MLPClassifier in model_types.keys():
-                    a[10] = model_types[MLPClassifier]
-                a[11] = heft.random_ensemble
+                    a[11] = model_types[MLPClassifier]
+                a[12] = heft.random_ensemble
                 stdout = sys.stdout
                 s = StringIO()
                 sys.stdout = s
@@ -137,9 +137,9 @@ for file in files:
                 s.seek(0)
                 t = get_proc_samples_accuracy_time(s.read())
                 sys.stdout = stdout
-                a[12] = t[0]
-                a[13] = t[1]
-                a[14] = t[2]
+                a[13] = t[0]
+                a[14] = t[1]
+                a[15] = t[2]
                 result_array.append(a)
 
                 # 6. Print the results of the evalutation to a resutl file
@@ -147,6 +147,6 @@ for file in files:
 
 df = pd.DataFrame(np.array(result_array),
                   columns=['dataset', 'ensemble', 'base_naive', 'base_hatt', 'base_hat', 'base_MLP',
-                           'feature_selector', 'final_naive', 'final_hatt', 'final_hat', 'final_MLP', 'random_ensemble',
+                           'feature_selector', 'avg_selected_features' 'final_naive', 'final_hatt', 'final_hat', 'final_MLP', 'random_ensemble',
                            'total_samples', 'accuracy', 'running_time'])
 df.to_csv('result.csv')
