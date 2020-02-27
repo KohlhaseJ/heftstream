@@ -1,0 +1,7 @@
+,dataset,ensemble,base_naive,base_hatt,base_MLP,feature_selector,avg_selected_features,final_naive,final_hatt,final_MLP,random_ensemble,total_samples,accuracy,running_time
+0,data/KDD_PRE.csv,awe,1,0,0,0,0,0,0,0,0,25000,0.742,152.4
+1,data/KDD_PRE.csv,aee,1,0,0,0,0,0,0,0,0,25000,0.995,596.89
+2,data/KDD_PRE.csv,heft,1,1,0,FCBF,2.704,7,1,0,0,25000,0.8431,636.13
+3,data/KDD_PRE.csv,heft,1,1,0,FCBF,2.704,3,5,0,1,25000,0.8431,716.39
+4,data/KDD_PRE.csv,heft,1,1,0,CMIM,2.656,10,0,0,0,25000,0.6295,50.27
+5,data/KDD_PRE.csv,heft,1,1,0,CMIM,2.656,3,7,0,1,25000,0.6295,92.17
