@@ -15,6 +15,6 @@ HEFT-Stream is an ensmemble learning method that incorporates feature selection 
 <a class="btn" href="https://www.researchgate.net/publication/229067302_Heterogeneous_Ensemble_for_Feature_Drifts_in_Data_Streams/link/00463532915e53f75a000000/download">Paper</a>
 <a class="btn" href="https://kohlhasej.github.io/heftstream/pdfs/dmlab_heftstream_poster.pdf">Poster</a>
 <a class="btn" href="https://kohlhasej.github.io/heftstream/pdfs/dmlab_heftstream_03.pdf">Slides</a>
-<a class="btn" href="http://www.google.com">Data</a>
+<a class="btn" href="https://seafile.cloud.uni-hannover.de/d/3b0cd3ea4e444da78d1d/">Data</a>
 </center>
 </div>
